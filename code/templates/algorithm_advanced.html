@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}算法进阶{% endblock %}
+
+{% block content %}
+    <div class="content">
+        <h1>算法进阶</h1>
+        <div class="topic-grid">
+            {% for topic in topics %}
+            <div class="topic-card advanced">
+                <div class="topic-header">
+                    <h2>{{ topic.title }}</h2>
+                    <span class="difficulty-badge">高级</span>
+                </div>
+                <p>{{ topic.description }}</p>
+                <div class="section-list">
+                    {% for section in topic.sections %}
+                    <div class="section-item">
+                        <span class="section-name">{{ section }}</span>
+                        <div class="section-actions">
+                            <a href="#" class="learn-btn">学习</a>
+                            <a href="#" class="practice-btn">练习</a>
+                            <a href="#" class="resource-btn">资源</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %} 

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}个人主页{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="profile-info">
+            <h1>{{ current_user.username }} 的个人主页</h1>
+            <span class="user-badge">Level {{ user_level }}</span>
+        </div>
+        <div class="profile-actions">
+            <a href="{{ url_for('user_settings') }}" class="edit-profile-btn">
+                <i class="fas fa-cog"></i>编辑资料
+            </a>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon solved">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value">{{ solved_count }}</span>
+                <span class="stat-label">解题总数</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon submissions">
+                <i class="fas fa-code"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value">{{ submission_count }}</span>
+                <span class="stat-label">提交总数</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon rate">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value">{{ pass_rate }}%</span>
+                <span class="stat-label">通过率</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-sections">
+        <div class="section solved-problems">
+            <h2>已解决的题目</h2>
+            <div class="problem-tags">
+                <span class="tag">简单 <span class="count">{{ stats.easy_count }}</span></span>
+                <span class="tag">中等 <span class="count">{{ stats.medium_count }}</span></span>
+                <span class="tag">困难 <span class="count">{{ stats.hard_count }}</span></span>
+            </div>
+            <div class="problem-list">
+                {% for problem in solved_problems %}
+                <a href="{{ url_for('problem_detail', problem_id=problem.id) }}" class="problem-item">
+                    <span class="problem-title">{{ problem.title }}</span>
+                    <span class="difficulty difficulty-{{ problem.difficulty }}">
+                        {{ '简单' if problem.difficulty == 1 else '中等' if problem.difficulty == 2 else '困难' }}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="section recent-activity">
+            <h2>最近活动</h2>
+            <div class="activity-timeline">
+                {% for activity in recent_activities %}
+                <div class="activity-item">
+                    <div class="activity-icon {{ 'success' if activity.is_correct else 'fail' }}">
+                        <i class="fas {{ 'fa-check' if activity.is_correct else 'fa-times' }}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <span class="activity-time">{{ activity.submit_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                        <span class="activity-text">
+                            {{ '解决了' if activity.is_correct else '尝试了' }}
+                            <a href="{{ url_for('problem_detail', problem_id=activity.problem_id) }}">
+                                {{ activity.problem.title }}
+                            </a>
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

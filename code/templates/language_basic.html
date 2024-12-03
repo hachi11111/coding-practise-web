@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}编程语言基础{% endblock %}
+
+{% block content %}
+    <div class="content">
+        <h1>编程语言基础</h1>
+        <div class="language-grid">
+            {% for language in languages %}
+            <div class="language-card">
+                <div class="language-header">
+                    <h2>{{ language.name }}</h2>
+                    <div class="progress-circle" data-progress="0">
+                        <span class="progress-text">0%</span>
+                    </div>
+                </div>
+                <div class="topic-list">
+                    {% for topic in language.topics %}
+                    <div class="topic-item">
+                        <span class="topic-name">{{ topic }}</span>
+                        <div class="topic-actions">
+                            <a href="#" class="learn-btn">学习</a>
+                            <a href="#" class="practice-btn">练习</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %} 

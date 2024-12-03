@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>用户主页</title>
+</head>
+<body>
+    <h1>用户主页</h1>
+    <nav>
+        <a href="{{ url_for('logout') }}">登出</a>
+        <a href="{{ url_for('practice', difficulty=1) }}">简单题目</a>
+        <a href="{{ url_for('practice', difficulty=2) }}">中等题目</a>
+        <a href="{{ url_for('practice', difficulty=3) }}">困难题目</a>
+        <a href="{{ url_for('exercise') }}">随机练习</a>
+    </nav>
+    <h2>题目列表</h2>
+    <ul>
+    {% for problem in problems %}
+        <li>{{ problem.title }} (难度: {{ problem.difficulty }})</li>
+    {% endfor %}
+    </ul>
+</body>
+</html> 

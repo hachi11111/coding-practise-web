@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>题目管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>题目管理</h1>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">返回主页</a>
+        </nav>
+        
+        <h2>添加新题目</h2>
+        <form method="POST">
+            <div>
+                <label>标题：</label>
+                <input type="text" name="title" required>
+            </div>
+            <div>
+                <label>内容：</label>
+                <textarea name="content" required></textarea>
+            </div>
+            <div>
+                <label>答案：</label>
+                <input type="text" name="answer" required>
+            </div>
+            <div>
+                <label>难度：</label>
+                <select name="difficulty" required>
+                    <option value="1">简单</option>
+                    <option value="2">中等</option>
+                    <option value="3">困难</option>
+                </select>
+            </div>
+            <button type="submit">添加题目</button>
+        </form>
+
+        <h2>现有题目</h2>
+        <ul class="problem-list">
+        {% for problem in problems %}
+            <li class="problem-item">
+                <h3>{{ problem.title }}</h3>
+                <span class="difficulty difficulty-{{ problem.difficulty }}">
+                    {{ '简单' if problem.difficulty == 1 else '中等' if problem.difficulty == 2 else '困难' }}
+                </span>
+                <p>内容：{{ problem.content }}</p>
+                <p>答案：{{ problem.answer }}</p>
+            </li>
+        {% endfor %}
+        </ul>
+    </div>
+</body>
+</html> 

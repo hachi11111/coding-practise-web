@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>练习模式 - {{ '简单' if difficulty == 1 else '中等' if difficulty == 2 else '困难' }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="{{ url_for('dashboard') }}">返回主页</a>
+            <div class="difficulty-nav">
+                <a href="{{ url_for('practice', difficulty=1) }}" class="difficulty-btn difficulty-1 {{ 'active' if difficulty == 1 }}">简单</a>
+                <a href="{{ url_for('practice', difficulty=2) }}" class="difficulty-btn difficulty-2 {{ 'active' if difficulty == 2 }}">中等</a>
+                <a href="{{ url_for('practice', difficulty=3) }}" class="difficulty-btn difficulty-3 {{ 'active' if difficulty == 3 }}">困难</a>
+            </div>
+        </nav>
+
+        <div class="practice-header">
+            <h1>{{ '简单' if difficulty == 1 else '中等' if difficulty == 2 else '困难' }}难度题目</h1>
+        </div>
+
+        <div class="problems-grid">
+            {% for problem in problems %}
+            <a href="{{ url_for('problem_detail', problem_id=problem.id) }}" class="problem-card">
+                <div class="problem-info">
+                    <span class="problem-id">#{{ problem.id }}</span>
+                    <h3>{{ problem.title }}</h3>
+                </div>
+                <div class="problem-stats">
+                    <span class="difficulty difficulty-{{ problem.difficulty }}">
+                        {{ '简单' if problem.difficulty == 1 else '中等' if problem.difficulty == 2 else '困难' }}
+                    </span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html> 

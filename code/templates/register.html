@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>注册</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>注册</h1>
+        <nav>
+            <a href="{{ url_for('index') }}">返回首页</a>
+        </nav>
+        <form method="POST" class="register-form">
+            <div>
+                <label>用户名：</label>
+                <input type="text" name="username" required>
+            </div>
+            <div>
+                <label>密码：</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit">注册</button>
+            <p class="form-footer">
+                已有账号？<a href="{{ url_for('login') }}">立即登录</a>
+            </p>
+        </form>
+    </div>
+</body>
+</html> 

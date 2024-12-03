@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}算法基础{% endblock %}
+
+{% block content %}
+<div class="content">
+    <h1>算法基础</h1>
+    <div class="topic-grid">
+        {% for topic in topics %}
+        <div class="topic-card basic">
+            <div class="topic-header">
+                <h2>{{ topic.title }}</h2>
+                <span class="difficulty-badge">基础</span>
+            </div>
+            <p>{{ topic.description }}</p>
+            <div class="section-list">
+                {% for section in topic.sections %}
+                <div class="section-item">
+                    <div class="section-header">
+                        <span class="section-name">{{ section.name }}</span>
+                        <div class="section-progress">
+                            <div class="progress-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div class="content-text">{{ section.content }}</div>
+                        {% if section.examples %}
+                        <div class="examples">
+                            <h4>示例：</h4>
+                            <ul>
+                                {% for example in section.examples %}
+                                <li>{{ example }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        {% if section.implementations %}
+                        <div class="implementations">
+                            <h4>实现示例：</h4>
+                            <div class="code-tabs">
+                                {% for lang, code in section.implementations.items() %}
+                                <button class="tab-btn" onclick="showCode('{{ section.name }}', '{{ lang }}')">{{ lang }}</button>
+                                {% endfor %}
+                            </div>
+                            {% for lang, code in section.implementations.items() %}
+                            <pre class="code-block" id="{{ section.name }}-{{ lang }}" style="display: none;">{{ code }}</pre>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if section.exercises %}
+                        <div class="exercises">
+                            <h4>练习题：</h4>
+                            <div class="exercise-list">
+                                {% for exercise in section.exercises %}
+                                <div class="exercise-item">
+                                    <span class="exercise-title">{{ exercise.title }}</span>
+                                    <span class="exercise-difficulty {{ exercise.difficulty }}">{{ exercise.difficulty }}</span>
+                                    <button class="start-exercise">开始练习</button>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showCode(section, lang) {
+    // 隐藏所有代码块
+    const codeBlocks = document.querySelectorAll(`[id^="${section}-"]`);
+    codeBlocks.forEach(block => block.style.display = 'none');
+    
+    // 显示选中的代码块
+    document.getElementById(`${section}-${lang}`).style.display = 'block';
+    
+    // 更新按钮状态
+    const buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+}
+</script>
+{% endblock %} 

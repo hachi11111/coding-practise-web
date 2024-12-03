@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <div class="nav-left">
+                <a href="{{ url_for('dashboard') }}" class="nav-item">主页</a>
+                <a href="{{ url_for('algorithm_basic') }}" class="nav-item">算法基础</a>
+                <a href="{{ url_for('language_basic') }}" class="nav-item">语言基础</a>
+                <a href="{{ url_for('algorithm_advanced') }}" class="nav-item">算法进阶</a>
+            </div>
+            <div class="nav-right">
+                {% if current_user %}
+                <div class="user-menu">
+                    <span class="username">{{ current_user.username }}</span>
+                    <div class="user-dropdown">
+                        <div class="dropdown-header">
+                            <div class="user-info">
+                                <h3>{{ current_user.username }}</h3>
+                                <span class="user-level">Level {{ user_level }}</span>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="user-stats">
+                            <div class="stat-row">
+                                <span class="stat-label">解题总数</span>
+                                <span class="stat-value">{{ solved_count }}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">提交总数</span>
+                                <span class="stat-value">{{ submission_count }}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">通过率</span>
+                                <span class="stat-value">{{ pass_rate }}%</span>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-links">
+                            <a href="{{ url_for('user_profile') }}" class="dropdown-item">
+                                <i class="fas fa-user"></i>个人主页
+                            </a>
+                            <a href="{{ url_for('user_submissions') }}" class="dropdown-item">
+                                <i class="fas fa-history"></i>提交历史
+                            </a>
+                            <a href="{{ url_for('user_settings') }}" class="dropdown-item">
+                                <i class="fas fa-cog"></i>设置
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <form action="{{ url_for('logout') }}" method="post" class="logout-form">
+                                <button type="submit" class="dropdown-item logout">
+                                    <i class="fas fa-sign-out-alt"></i>退出登录
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="auth-links">
+                    <a href="{{ url_for('login') }}" class="nav-item">登录</a>
+                    <a href="{{ url_for('register') }}" class="nav-item">注册</a>
+                </div>
+                {% endif %}
+            </div>
+        </nav>
+        {% block content %}{% endblock %}
+    </div>
+    {% block scripts %}{% endblock %}
+</body>
+</html> 

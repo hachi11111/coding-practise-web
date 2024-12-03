@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>随机练习</title>
+</head>
+<body>
+    <h1>随机练习</h1>
+    <a href="{{ url_for('dashboard') }}">返回主页</a>
+    {% if problem %}
+    <div>
+        <h3>{{ problem.title }}</h3>
+        <p>{{ problem.content }}</p>
+        <form method="POST" action="{{ url_for('submit_answer') }}">
+            <input type="hidden" name="problem_id" value="{{ problem.id }}">
+            <input type="hidden" name="mode" value="exercise">
+            <input type="text" name="answer" required>
+            <button type="submit">提交答案</button>
+        </form>
+    </div>
+    {% else %}
+    <p>暂无题目</p>
+    {% endif %}
+</body>
+</html> 

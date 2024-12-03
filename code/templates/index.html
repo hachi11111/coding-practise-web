@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>在线题目练习系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="landing-page">
+    <div class="landing-container">
+        <div class="welcome-section">
+            <h1>欢迎来到在线题目练习系统</h1>
+            <p class="subtitle">这是一个帮助你提高编程能力的在线练习平台。</p>
+            
+            <div class="auth-buttons">
+                <a href="{{ url_for('login') }}" class="auth-btn login">
+                    <span class="btn-text">登录</span>
+                    <span class="btn-description">已有账号？立即登录</span>
+                </a>
+                <a href="{{ url_for('register') }}" class="auth-btn register">
+                    <span class="btn-text">注册</span>
+                    <span class="btn-description">新用户？免费注册</span>
+                </a>
+            </div>
+
+            <div class="features">
+                <div class="feature-item">
+                    <i class="fas fa-code"></i>
+                    <h3>丰富的题目库</h3>
+                    <p>包含多种难度的编程题目</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h3>系统化学习</h3>
+                    <p>从基础到进阶的学习路径</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>实时反馈</h3>
+                    <p>即时的代码评测和分析</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

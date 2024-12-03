@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}{{ problem.title }} - 题目详情{% endblock %}
+
+{% block extra_head %}
+    <!-- CodeMirror 相关引用 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/material.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/solarized.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css">
+{% endblock %}
+
+{% block content %}
+    <div class="problem-detail">
+        <div class="problem-header">
+            <h1>{{ problem.title }}</h1>
+            <span class="difficulty difficulty-{{ problem.difficulty }}">
+                {{ '简单' if problem.difficulty == 1 else '中等' if problem.difficulty == 2 else '困难' }}
+            </span>
+        </div>
+
+        <div class="problem-content">
+            <h2>题目描述</h2>
+            <p>{{ problem.content }}</p>
+        </div>
+
+        <div class="code-section">
+            <div class="code-header">
+                <select class="language-select">
+                    <option value="python">Python</option>
+                    <option value="cpp">C++</option>
+                    <option value="java">Java</option>
+                </select>
+                <select class="theme-select">
+                    <option value="default">默认主题</option>
+                    <option value="monokai">Monokai</option>
+                    <option value="dracula">Dracula</option>
+                    <option value="material">Material</option>
+                    <option value="solarized">Solarized</option>
+                    <option value="eclipse">Eclipse</option>
+                </select>
+                <button onclick="loadTemplate()">加载模板</button>
+            </div>
+
+            <form action="{{ url_for('submit_answer') }}" method="post" id="submit-form">
+                <input type="hidden" name="problem_id" value="{{ problem.id }}">
+                <textarea id="code-editor" name="code"></textarea>
+                <input type="hidden" name="language" value="python">
+                <button type="submit" class="submit-btn">提交代码</button>
+            </form>
+        </div>
+
+        <!-- 结果弹窗 -->
+        <div class="result-modal" id="resultModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"></h3>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="result-icon">
+                        <i class="fas fa-check-circle success-icon"></i>
+                        <i class="fas fa-times-circle error-icon"></i>
+                    </div>
+                    <div class="result-message"></div>
+                    <div class="result-details"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="try-again-btn">再试一次</button>
+                    <button class="next-problem-btn">下一题</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <!-- CodeMirror 脚本文件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
+
+    <script>
+    const codeTemplates = {
+        python: {
+            default: `def solution(nums):\n    # 在这里写下你的代码\n    pass\n`,
+            array: `def solution(nums):\n    # 数组相关的代码模板\n    result = []\n    for i in range(len(nums)):\n        # 处理数组元素\n        pass\n    return result\n`,
+            string: `def solution(s):\n    # 字符串相关的代码模板\n    result = ''\n    for char in s:\n        # 处理字符\n        pass\n    return result\n`
+        },
+        cpp: {
+            default: `class Solution {\npublic:\n    vector<int> solution(vector<int>& nums) {\n        // 在这里写下你的代码\n        return {};\n    }\n};\n`,
+            array: `class Solution {\npublic:\n    vector<int> solution(vector<int>& nums) {\n        vector<int> result;\n        for(int i = 0; i < nums.size(); i++) {\n            // 处理数组元素\n        }\n        return result;\n    }\n};\n`,
+            string: `class Solution {\npublic:\n    string solution(string s) {\n        string result = "";\n        for(char c : s) {\n            // 处理字符\n        }\n        return result;\n    }\n};\n`
+        }
+    };
+
+    // 初始化代码编辑器
+    let editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+        mode: 'python',
+        theme: 'default',
+        lineNumbers: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        styleActiveLine: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        lineWrapping: true
+    });
+
+    // 设置初始内容
+    editor.setValue(codeTemplates.python.default);
+
+    // 语言切换处理
+    document.querySelector('.language-select').addEventListener('change', (e) => {
+        const language = e.target.value;
+        editor.setOption('mode', language === 'python' ? 'python' : 'text/x-c++src');
+        editor.setValue(codeTemplates[language].default);
+        editor.refresh();
+    });
+
+    // 主题切换处理
+    document.querySelector('.theme-select').addEventListener('change', (e) => {
+        editor.setOption('theme', e.target.value);
+        editor.refresh();
+    });
+
+    // 加载模板
+    function loadTemplate() {
+        const language = document.querySelector('.language-select').value;
+        const problemTitle = document.querySelector('.problem-header h1').textContent.toLowerCase();
+        
+        let templateType = 'default';
+        if (problemTitle.includes('数组')) {
+            templateType = 'array';
+        } else if (problemTitle.includes('字符串')) {
+            templateType = 'string';
+        }
+        
+        editor.setValue(codeTemplates[language][templateType]);
+        editor.refresh();
+    }
+
+    // 提交表单处理
+    document.querySelector('form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        formData.set('code', editor.getValue());
+        formData.set('language', document.querySelector('.language-select').value);
+
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const modal = document.getElementById('resultModal');
+            const content = modal.querySelector('.modal-content');
+            const title = modal.querySelector('.modal-title');
+            const message = modal.querySelector('.result-message');
+            const details = modal.querySelector('.result-details');
+            
+            // 设置弹窗标题和类型
+            content.className = 'modal-content ' + (data.is_correct ? 'success' : 'error');
+            title.textContent = data.is_correct ? '提交成功！' : '提交失败';
+            message.textContent = data.message;
+            
+            // 显示测试用例结果
+            if (data.result && data.result.results) {
+                let detailsHtml = `
+                    <div class="test-cases">
+                        <div class="test-summary">
+                            <span class="score">得分：${data.result.score}分</span>
+                            <span class="pass-rate">通过率：${data.result.passed_count}/${data.result.total_count}</span>
+                        </div>
+                `;
+                
+                data.result.results.forEach((result, index) => {
+                    detailsHtml += `
+                        <div class="test-case ${result.passed ? 'passed' : 'failed'}">
+                            <div class="case-header">
+                                <span>测试用例 ${index + 1}</span>
+                                <span class="case-status">${result.passed ? '通过' : '失败'}</span>
+                            </div>
+                            <div class="case-details">
+                                <div class="case-input">
+                                    <span class="label">输入：</span>
+                                    <span class="value">${JSON.stringify(result.input)}</span>
+                                </div>
+                                <div class="case-expected">
+                                    <span class="label">期望输出：</span>
+                                    <span class="value">${result.expected}</span>
+                                </div>
+                                <div class="case-actual">
+                                    <span class="label">实际输出：</span>
+                                    <span class="value">${result.actual || '无输出'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                detailsHtml += '</div>';
+                details.innerHTML = detailsHtml;
+            }
+            
+            // 显示弹窗
+            modal.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('提交失败，请重试');
+        });
+    });
+
+    // 关闭弹窗的各种方式
+    document.querySelector('.close-modal').addEventListener('click', function() {
+        document.getElementById('resultModal').style.display = 'none';
+    });
+
+    document.querySelector('.try-again-btn').addEventListener('click', function() {
+        document.getElementById('resultModal').style.display = 'none';
+    });
+
+    document.querySelector('.next-problem-btn').addEventListener('click', function() {
+        const currentDifficulty = {{ problem.difficulty }};
+        window.location.href = `/practice/${currentDifficulty}`;
+    });
+
+    window.addEventListener('click', function(e) {
+        const modal = document.getElementById('resultModal');
+        if (e.target == modal) {
+            modal.style.display = 'none';
+        }
+    });
+    </script>
+{% endblock %} 

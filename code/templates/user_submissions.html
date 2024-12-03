@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}提交历史{% endblock %}
+
+{% block content %}
+<div class="submissions-container">
+    <h1>提交历史</h1>
+    
+    <div class="submissions-filter">
+        <select class="filter-select">
+            <option value="all">全部提交</option>
+            <option value="accepted">已通过</option>
+            <option value="wrong">未通过</option>
+        </select>
+    </div>
+
+    <div class="submissions-list">
+        {% for submission in submissions %}
+        <div class="submission-item {{ 'accepted' if submission.is_correct else 'wrong' }}">
+            <div class="submission-status">
+                <i class="fas {{ 'fa-check' if submission.is_correct else 'fa-times' }}"></i>
+                <span>{{ '通过' if submission.is_correct else '未通过' }}</span>
+            </div>
+            <div class="submission-info">
+                <a href="{{ url_for('problem_detail', problem_id=submission.problem_id) }}" class="problem-link">
+                    {{ submission.problem.title }}
+                </a>
+                <span class="submission-time">{{ submission.submit_time.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+            </div>
+            <div class="submission-actions">
+                <button class="view-code-btn">查看代码</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="submissions-pagination">
+        <button class="page-btn" disabled><i class="fas fa-chevron-left"></i></button>
+        <span class="page-info">第 1 页，共 10 页</span>
+        <button class="page-btn"><i class="fas fa-chevron-right"></i></button>
+    </div>
+</div>
+{% endblock %} 

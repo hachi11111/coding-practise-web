@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}用户主页{% endblock %}
+
+{% block content %}
+<div class="dashboard-content">
+    <div class="practice-modes">
+        <h2>练习模式</h2>
+        <div class="mode-cards">
+            <div class="mode-card difficulty-1">
+                <h3>简单题目</h3>
+                <p>适合初学者的基础练习</p>
+                <a href="{{ url_for('practice', difficulty=1) }}" class="mode-button">开始练习</a>
+            </div>
+            <div class="mode-card difficulty-2">
+                <h3>中等题目</h3>
+                <p>需要一定思考的进阶题目</p>
+                <a href="{{ url_for('practice', difficulty=2) }}" class="mode-button">开始练习</a>
+            </div>
+            <div class="mode-card difficulty-3">
+                <h3>困难题目</h3>
+                <p>富有挑战性的高级题目</p>
+                <a href="{{ url_for('practice', difficulty=3) }}" class="mode-button">开始练习</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-start">
+        <h2>快速开始</h2>
+        <a href="{{ url_for('exercise') }}" class="quick-start-button">随机练习</a>
+    </div>
+
+    <div class="problem-section">
+        <h2>题目列表</h2>
+        <div class="problem-grid">
+            {% for problem in problems %}
+            <a href="{{ url_for('problem_detail', problem_id=problem.id) }}" class="problem-card">
+                <span class="difficulty difficulty-{{ problem.difficulty }}">
+                    {{ '简单' if problem.difficulty == 1 else '中等' if problem.difficulty == 2 else '困难' }}
+                </span>
+                <h3>{{ problem.title }}</h3>
+                <p>{{ problem.content[:100] }}...</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="submission-history">
+        <h2>提交历史</h2>
+        <div class="history-stats">
+            <div class="stat-item">
+                <span class="stat-label">总提交次数：</span>
+                <span class="stat-value" id="total-submissions">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">通过次数：</span>
+                <span class="stat-value" id="passed-submissions">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">通过率：</span>
+                <span class="stat-value" id="pass-rate">0%</span>
+            </div>
+        </div>
+        <div class="calendar-header">
+            <div class="month-labels">
+                <span>一月</span><span>二月</span><span>三月</span><span>四月</span>
+                <span>五月</span><span>六月</span><span>七月</span><span>八月</span>
+                <span>九月</span><span>十月</span><span>十一月</span><span>十二月</span>
+            </div>
+        </div>
+        <div class="calendar-heatmap"></div>
+    </div>
+</div>
+
+<style>
+/* 提交历史热力图样式 */
+.calendar-heatmap {
+    display: grid;
+    grid-template-columns: repeat(53, 1fr);
+    gap: 3px;
+    padding: 20px 0;
+    background: #fff;
+    border-radius: 4px;
+}
+
+.day {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background-color: #ebedf0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.day:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+.contribution-0 { background-color: #ebedf0; }
+.contribution-1 { background-color: #9be9a8; }
+.contribution-2 { background-color: #40c463; }
+.contribution-3 { background-color: #30a14e; }
+.contribution-4 { background-color: #216e39; }
+
+/* 提交历史统计样式 */
+.submission-history {
+    margin-top: 30px;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.history-stats {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.calendar-header {
+    margin: 20px 0;
+}
+
+.month-labels {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    text-align: center;
+    font-size: 0.8em;
+    color: #666;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/submission_history')
+        .then(response => response.json())
+        .then(data => {
+            const heatmap = document.querySelector('.calendar-heatmap');
+            const today = new Date();
+            
+            // 清空现有内容
+            heatmap.innerHTML = '';
+            
+            // 创建日历网格
+            for (let i = 364; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                const dayData = data[dateStr] || { total: 0, correct: 0 };
+                
+                const dayElement = document.createElement('div');
+                dayElement.className = 'day';
+                
+                // 根据当天的提交次数设置颜色深浅
+                let contributionLevel = 0;
+                if (dayData.total > 0) {
+                    if (dayData.total >= 10) contributionLevel = 4;
+                    else if (dayData.total >= 7) contributionLevel = 3;
+                    else if (dayData.total >= 4) contributionLevel = 2;
+                    else contributionLevel = 1;
+                }
+                
+                dayElement.classList.add(`contribution-${contributionLevel}`);
+                dayElement.title = `${dateStr}\n提交：${dayData.total} 次\n通过：${dayData.correct} 次`;
+                heatmap.appendChild(dayElement);
+            }
+            
+            // 更新统计信息
+            const totalSubmissions = document.getElementById('total-submissions');
+            const passedSubmissions = document.getElementById('passed-submissions');
+            const passRate = document.getElementById('pass-rate');
+            
+            let total = 0;
+            let correct = 0;
+            Object.values(data).forEach(day => {
+                total += day.total;
+                correct += day.correct;
+            });
+            
+            if (totalSubmissions) totalSubmissions.textContent = total;
+            if (passedSubmissions) passedSubmissions.textContent = correct;
+            if (passRate) {
+                const rate = total > 0 ? Math.round((correct / total) * 100) : 0;
+                passRate.textContent = rate + '%';
+            }
+        });
+});
+</script>
+{% endblock %}
