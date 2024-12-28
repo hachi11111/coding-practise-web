@@ -1,3 +1,8 @@
+#本代码使用通义千问大语言模型进行代码的生成
+#本代码使用Flask框架进行开发
+#搭建环境需要运行命令：pip install flask flask-sqlalchemy
+#搭建好环境后终端输入：python 1.py或者直接运行1.py文件
+#然后打开浏览器访问：http://127.0.0.1:5000/，即可看到刷题网站
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_sqlalchemy import SQLAlchemy
 import random
