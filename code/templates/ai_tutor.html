@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}AI算法辅导{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4>AI算法辅导</h4>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="clearHistory()">
+                        清除对话历史
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="chat-history" class="mb-3" style="height: 400px; overflow-y: auto;">
+                        <!-- 聊天记录将在这里显示 -->
+                    </div>
+                    <div class="input-group">
+                        <select id="question-type" class="form-control" style="max-width: 150px;">
+                            <option value="concept">概念解释</option>
+                            <option value="solution">解题思路</option>
+                            <option value="debug">代码��试</option>
+                            <option value="optimize">代码优化</option>
+                        </select>
+                        <select id="problem-select" class="form-control" style="max-width: 200px;">
+                            <option value="">选择相关题目(可选)</option>
+                            {% for problem in problems %}
+                            <option value="{{ problem.id }}">{{ problem.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="text" id="user-input" class="form-control" placeholder="输入你的问题...">
+                        <button class="btn btn-primary" onclick="sendMessage()">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>辅导功能说明</h5>
+                </div>
+                <div class="card-body">
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <h6>概念解释</h6>
+                            <p>解释算法概念、数据结构等基础知识</p>
+                        </div>
+                        <div class="feature-item">
+                            <h6>解题思路</h6>
+                            <p>分析题目,提供解题思路和方法</p>
+                        </div>
+                        <div class="feature-item">
+                            <h6>代码调试</h6>
+                            <p>帮助找出代码中的错误并修正</p>
+                        </div>
+                        <div class="feature-item">
+                            <h6>代码优化</h6>
+                            <p>提供代码优化建议,提升性能</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.feature-item {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.feature-item h6 {
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.feature-item p {
+    color: #666;
+    margin: 0;
+    font-size: 0.9em;
+}
+
+.chat-message {
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 8px;
+    max-width: 85%;
+    white-space: pre-wrap;
+}
+
+.user-message {
+    background: #e3f2fd;
+    margin-left: auto;
+}
+
+.ai-message {
+    background: #f5f5f5;
+    margin-right: auto;
+}
+
+#chat-history {
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.ai-message p {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.ai-message p:not(:last-child) {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+</style>
+
+<script>
+function appendMessage(message, isUser) {
+    const chatHistory = document.getElementById('chat-history');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${isUser ? 'user-message' : 'ai-message'}`;
+    messageDiv.textContent = message;
+    chatHistory.appendChild(messageDiv);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+function sendMessage() {
+    const userInput = document.getElementById('user-input');
+    const questionType = document.getElementById('question-type');
+    const problemSelect = document.getElementById('problem-select');
+    const message = userInput.value.trim();
+    const type = questionType.value;
+    const problemId = problemSelect.value;
+    
+    if (!message) return;
+    
+    appendMessage(message, true);
+    userInput.value = '';
+    
+    // 创建新的消息容器
+    const responseDiv = document.createElement('div');
+    responseDiv.className = 'chat-message ai-message';
+    document.getElementById('chat-history').appendChild(responseDiv);
+    
+    let currentParagraph = document.createElement('p');
+    responseDiv.appendChild(currentParagraph);
+    
+    // 创建EventSource连接
+    const eventSource = new EventSource(`/ai_chat?${new URLSearchParams({
+        message: message,
+        type: type,
+        problem_id: problemId || ''
+    })}`);
+    
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.content === '[DONE]') {
+            eventSource.close();
+            return;
+        }
+        
+        // 检查是否是新段落
+        if (data.content.includes('---')) {
+            currentParagraph = document.createElement('p');
+            responseDiv.appendChild(currentParagraph);
+            currentParagraph.textContent = data.content.replace('---', '').trim();
+        } else {
+            currentParagraph.textContent += data.content;
+        }
+        
+        // 自动滚动到底部
+        const chatHistory = document.getElementById('chat-history');
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    };
+    
+    eventSource.onerror = function() {
+        eventSource.close();
+        currentParagraph.textContent += '\n[连接已关闭]';
+    };
+}
+
+function clearHistory() {
+    if (confirm('确定要清除对话历史吗？')) {
+        fetch('/clear_chat_history', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('chat-history').innerHTML = '';
+            }
+        });
+    }
+}
+
+document.getElementById('user-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+</script>
+{% endblock %} 

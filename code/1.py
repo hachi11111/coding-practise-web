@@ -3,7 +3,7 @@
 #搭建环境需要运行命令：pip install flask flask-sqlalchemy
 #搭建好环境后终端输入：python 1.py或者直接运行1.py文件
 #然后打开浏览器访问：http://127.0.0.1:5000/，即可看到刷题网站
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, Response
 from flask_sqlalchemy import SQLAlchemy
 import random
 from functools import wraps
@@ -31,7 +31,7 @@ ALLOWED_EXTENSIONS = {'py', 'java', 'cpp', 'c'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # 初始化OpenAI客户端
-client = OpenAI(api_key="your_api_key_here", base_url="https://api.deepseek.com")
+client = OpenAI(api_key="sk-800e7c55d0534e7d95ab3e5c323220c9", base_url="https://api.deepseek.com")
 
 # 添加一个新的模型用于存储对话历史
 class ChatHistory(db.Model):
@@ -276,7 +276,7 @@ def judge_code(problem_id, submitted_code, language='python'):
                     'passed': False
                 }
             ],
-            'error': "测试用例格式���误"
+            'error': "测试用例格式错误"
         }
 
     # 运行每个测试用例
@@ -397,7 +397,7 @@ def get_submission_history(user_id):
     submission_counts = {}
     today = datetime.now().date()
     
-    # 初始化���有日期的数据
+    # 初始化所有日期的数据
     for i in range(365):
         date = today - timedelta(days=i)
         date_str = date.strftime('%Y-%m-%d')
@@ -542,7 +542,7 @@ def change_password():
     confirm_password = request.form.get('confirm_password')
     
     if not user.check_password(current_password):
-        flash('当前密��错误')
+        flash('当前密码错误')
         return redirect(url_for('user_settings'))
     
     if new_password != confirm_password:
@@ -623,7 +623,7 @@ ALGORITHM_BASIC_TOPICS = [
                 ],
                 'exercises': [
                     {'title': '分析简单循环的时间复杂度', 'difficulty': '简单'},
-                    {'title': '分���嵌套循环的时间复杂度', 'difficulty': '中等'},
+                    {'title': '分析嵌套循环的时间复杂度', 'difficulty': '中等'},
                     {'title': '优化算法的时间复杂度', 'difficulty': '困难'}
                 ]
             }
@@ -647,7 +647,7 @@ ALGORITHM_BASIC_TOPICS = [
             },
             {
                 'name': '链表',
-                'content': '理解链表的结��和基本操作',
+                'content': '理解链表的结构和基本操作',
                 'implementations': {
                     'python': '# 链表节点定义\nclass ListNode:\n    def __init__(self, val=0):\n        self.val = val\n        self.next = None',
                     'cpp': '// 链表节点定义\nstruct ListNode {\n    int val;\n    ListNode* next;\n    ListNode(int x) : val(x), next(NULL) {}\n};'
@@ -664,7 +664,7 @@ ALGORITHM_BASIC_TOPICS = [
         'description': '学习常见的排序算法及其实现',
         'sections': [
             {
-                'name': '础排序',
+                'name': '基础排序',
                 'content': '掌握基本的排序算法原理和实现',
                 'implementations': {
                     'python': '# 冒泡排序实现\ndef bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if arr[j] > arr[j+1]:\n                arr[j], arr[j+1] = arr[j+1], arr[j]\n    return arr',
@@ -713,7 +713,7 @@ ALGORITHM_ADVANCED_TOPICS = [
     },
     {
         'title': '动态规划',
-        'description': '掌握动态��划的设计方法和应用',
+        'description': '掌握动态规划的设计方法和应用',
         'sections': ['基本概念', '状态设计', '状态转移', '经典问题']
     },
     {
@@ -798,68 +798,64 @@ def ai_tutor():
                          pass_rate=stats['pass_rate'])
 
 # 修改ai_chat路由
-@app.route('/ai_chat', methods=['POST'])
+@app.route('/ai_chat', methods=['GET', 'POST'])
 @login_required
 def ai_chat():
-    user = User.query.get(session['user_id'])
-    user_message = request.json.get('message')
-    problem_id = request.json.get('problem_id')
+    if request.method == 'GET':
+        # 从URL参数获取数据
+        user_message = request.args.get('message')
+        question_type = request.args.get('type')
+        problem_id = request.args.get('problem_id')
+    else:
+        # 从JSON body获取数据
+        data = request.json
+        user_message = data.get('message')
+        question_type = data.get('type')
+        problem_id = data.get('problem_id')
     
-    # 获取用户的对话历史
-    chat_history = ChatHistory.query.filter_by(user_id=user.id).first()
-    if not chat_history:
-        chat_history = ChatHistory(user_id=user.id)
-        db.session.add(chat_history)
-        db.session.commit()
+    # 构建提示词
+    prompts = {
+        'concept': '请解释这个算法概念,分点说明: ',
+        'solution': '请分析这道题目并提供解题思路,按以下步骤说明:\n1.理解题意\n2.分析思路\n3.解题方法\n4.复杂度分析\n',
+        'debug': '请帮我找出代码中的问题,并按以下方式说明:\n1.问题定位\n2.原因分析\n3.修改建议\n',
+        'optimize': '请给出代码优化建议,从以下几个方面分析:\n1.时间复杂度\n2.空间复杂度\n3.代码结构\n4.具体优化方案\n'
+    }
     
-    # 解析存储的消息历史
-    messages = json.loads(chat_history.messages)
-    
-    # 如果提供了problem_id，获取题目信息
+    # 获取题目信息(如果有)
     context = ""
     if problem_id:
         problem = Problem.query.get(problem_id)
         if problem:
-            context = f"题目：{problem.title}\n描述：{problem.content}\n"
+            context = f"\n题目信息:\n标题: {problem.title}\n描述: {problem.content}\n"
     
-    # 添加系统消息（如果是新对话）
-    if not messages:
-        messages.append({
-            "role": "system",
-            "content": "你是一个专业的算法教练，帮助用户理解和解决算法问题。请提供清晰的解释和具体的示例。"
-        })
-    
-    # 添加用户消息
-    messages.append({
-        "role": "user",
-        "content": context + user_message
-    })
+    # 构建完整提示
+    prompt = prompts.get(question_type, '') + user_message + context
     
     try:
-        # 调用DeepSeek API
+        # 调用DeepSeek API并设置stream=True
         response = client.chat.completions.create(
             model="deepseek-chat",
-            messages=messages,
-            temperature=0.7
+            messages=[
+                {
+                    "role": "system",
+                    "content": "你是一个专业的算法教练,帮助用户理解算法概念、分���解题思路、调试和优化代码。请提供清晰的解释和具体的建议。请分段输出,每段用---分隔。"
+                },
+                {
+                    "role": "user", 
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            stream=True  # 启用流式输出
         )
         
-        # 获取AI回复
-        ai_message = response.choices[0].message
+        def generate():
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    yield f"data: {json.dumps({'content': chunk.choices[0].delta.content})}\n\n"
+            yield "data: {\"content\": \"[DONE]\"}\n\n"
         
-        # 将AI回复添加到消息历史
-        messages.append({
-            "role": "assistant",
-            "content": ai_message.content
-        })
-        
-        # 更新数据库中的消息历史
-        chat_history.messages = json.dumps(messages)
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "response": ai_message.content
-        })
+        return Response(generate(), mimetype='text/event-stream')
         
     except Exception as e:
         return jsonify({
