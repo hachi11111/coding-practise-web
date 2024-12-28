@@ -42,6 +42,18 @@ class ChatHistory(db.Model):
     
     user = db.relationship('User', backref=db.backref('chat_histories', lazy=True))
 
+# 添加反馈模型
+class AiFeedback(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message_id = db.Column(db.String(50), nullable=False)  # 用于标识具体的AI回复
+    rating = db.Column(db.Integer)  # 1-5星评分
+    feedback_type = db.Column(db.String(20))  # 反馈类型(清晰度/准确性/帮助度等)
+    comment = db.Column(db.Text)  # 具体反馈内容
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('ai_feedbacks', lazy=True))
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -614,7 +626,7 @@ ALGORITHM_BASIC_TOPICS = [
         'sections': [
             {
                 'name': '渐进符号',
-                'content': '理解大O、大Ω、大Θ符号的含义和使用场景，掌握不同时间复杂���的比较和分析方法。',
+                'content': '理解大O、大Ω、大Θ符号的含义和使用场景，掌握不同时间复杂复杂度的比较和分析方法。',
                 'examples': [
                     '常数时O(1) - 数组访问、基本运算',
                     '线性时间O(n) - 简单循环遍',
@@ -665,7 +677,7 @@ ALGORITHM_BASIC_TOPICS = [
         'sections': [
             {
                 'name': '基础排序',
-                'content': '掌握基本的排序算法原理和��现',
+                'content': '掌握基本的排序算法原理和实现',
                 'implementations': {
                     'python': '# 冒泡排序实现\ndef bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if arr[j] > arr[j+1]:\n                arr[j], arr[j+1] = arr[j+1], arr[j]\n    return arr',
                     'cpp': '// 冒泡排序实现\nvoid bubbleSort(vector<int>& arr) {\n    int n = arr.size();\n    for(int i = 0; i < n; i++)\n        for(int j = 0; j < n-i-1; j++)\n            if(arr[j] > arr[j+1])\n                swap(arr[j], arr[j+1]);\n}'
@@ -887,6 +899,128 @@ def clear_chat_history():
         chat_history.messages = '[]'
         db.session.commit()
     return jsonify({"success": True})
+
+@app.route('/submit_feedback', methods=['POST'])
+@login_required
+def submit_feedback():
+    try:
+        data = request.json
+        user_id = session['user_id']
+        
+        # 处理快速反馈
+        if data.get('feedback_type') == 'quick':
+            feedback = AiFeedback(
+                user_id=user_id,
+                message_id=data['message_id'],
+                rating=data['rating'],  # 满意=5, 不满意=1
+                feedback_type='quick',
+                comment='快速反馈: ' + ('满意' if data['is_satisfied'] else '不满意')
+            )
+        else:
+            # 处理详细反馈
+            feedback = AiFeedback(
+                user_id=user_id,
+                message_id=data['message_id'],
+                rating=data['rating'],
+                feedback_type=data['feedback_type'],
+                comment=data['comment']
+            )
+        
+        db.session.add(feedback)
+        db.session.commit()
+        
+        # 根据反馈调整AI参数
+        adjust_ai_parameters(feedback.feedback_type, feedback.rating)
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+def adjust_ai_parameters(feedback_type, rating):
+    """根据用户反馈调整AI参数"""
+    # 获取最近的反馈统计
+    recent_feedbacks = AiFeedback.query.order_by(
+        AiFeedback.created_at.desc()
+    ).limit(100).all()
+    
+    # 计算平均评分
+    avg_rating = sum(f.rating for f in recent_feedbacks) / len(recent_feedbacks) if recent_feedbacks else 0
+    
+    # 根据反馈类型和评分调整AI参数
+    if feedback_type == 'clarity':
+        if rating < 3:
+            # 增加输出的结构化程度
+            update_ai_prompt_template('clarity', True)
+        elif rating > 4:
+            # 保持当前的清晰度水平
+            update_ai_prompt_template('clarity', False)
+            
+    elif feedback_type == 'accuracy':
+        if rating < 3:
+            # 增加示例和解释的详细程度
+            update_ai_prompt_template('accuracy', True)
+        elif rating > 4:
+            # 保持当前的准确度水平
+            update_ai_prompt_template('accuracy', False)
+            
+    elif feedback_type == 'helpfulness':
+        if rating < 3:
+            # 增加实用建议和练习
+            update_ai_prompt_template('helpfulness', True)
+        elif rating > 4:
+            # 保持当前的帮助度水平
+            update_ai_prompt_template('helpfulness', False)
+
+def update_ai_prompt_template(feedback_type, need_improvement):
+    """更新AI提示模板"""
+    if need_improvement:
+        if feedback_type == 'clarity':
+            # 增加结构化提示
+            prompts['concept'] = '''请用更结构化的方式解释这个算法概念:
+1. 基本定义（用简单的语言解释）
+2. 核心要点（列出2-3个关键点）
+3. 实际应用（给出具体例子）
+4. 注意事项（可能的陷阱或误区）
+请使用Markdown格式，适当使用数学公式。
+'''
+        elif feedback_type == 'accuracy':
+            # 增加准确性提示
+            prompts['solution'] = '''请详细分析这道题目:
+1. 题目理解
+   - 输入输出要求
+   - 约束条件
+   - 边界情况
+2. 解题思路
+   - 算法原理
+   - 具体步骤
+   - 复杂度分析
+3. 代码实现
+   - 完整代码
+   - 关键部分注释
+4. 测试用例
+   - 常规情况
+   - 边界情况
+   - 特殊情况
+'''
+        elif feedback_type == 'helpfulness':
+            # 增加实用性提示
+            prompts['optimize'] = '''请提供实用的优化建议:
+1. 性能分析
+   - 当前瓶颈
+   - 可优化点
+2. 具体方案
+   - 代码优化
+   - 算法改进
+3. 实践建议
+   - 常见陷阱
+   - 最佳实践
+4. 扩展学习
+   - 相关知识
+   - 进阶主题
+'''
 
 if __name__ == '__main__':
     # 删除旧的数据库文件

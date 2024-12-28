@@ -245,6 +245,147 @@ MathJax = {
     padding: 1em;
     margin: 0.5em 0;
 }
+
+/* 添加反馈组件样式 */
+.feedback-container {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+}
+
+.feedback-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.feedback-button {
+    padding: 4px 12px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.feedback-button:hover {
+    background: #f0f0f0;
+}
+
+.feedback-button.selected {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.rating-stars {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+.star {
+    color: #ddd;
+    cursor: pointer;
+    font-size: 20px;
+}
+
+.star.filled {
+    color: #f1c40f;
+}
+
+.feedback-form {
+    display: none;
+    margin-top: 8px;
+}
+
+.feedback-form.active {
+    display: block;
+}
+
+.feedback-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.feedback-submit {
+    padding: 6px 12px;
+    background: #2ecc71;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.feedback-submit:hover {
+    background: #27ae60;
+}
+
+.quick-feedback {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.quick-feedback-btn {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.3s ease;
+}
+
+.quick-feedback-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.quick-feedback-btn.satisfied {
+    color: #2ecc71;
+    border-color: #2ecc71;
+}
+
+.quick-feedback-btn.unsatisfied {
+    color: #e74c3c;
+    border-color: #e74c3c;
+}
+
+.quick-feedback-btn.selected {
+    background: #f8f9fa;
+    transform: translateY(1px);
+}
+
+.quick-feedback-btn i {
+    font-size: 14px;
+}
+
+.detailed-feedback {
+    display: none;
+    margin-top: 10px;
+}
+
+.detailed-feedback.active {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 </style>
 
 <script>
@@ -292,17 +433,70 @@ function sendMessage() {
             if (data.content === '[DONE]') {
                 console.log('Stream completed'); // 调试日志
                 eventSource.close();
+                
+                // 在消息完成后添加反馈组件
+                const messageId = 'msg_' + Date.now();
+                responseDiv.setAttribute('data-message-id', messageId);
+                
+                const feedbackContainer = document.createElement('div');
+                feedbackContainer.className = 'feedback-container';
+                feedbackContainer.innerHTML = `
+                    <div class="quick-feedback">
+                        <button class="quick-feedback-btn satisfied" onclick="handleQuickFeedback('${messageId}', true)">
+                            <i class="fas fa-thumbs-up"></i>
+                            满意
+                        </button>
+                        <button class="quick-feedback-btn unsatisfied" onclick="handleQuickFeedback('${messageId}', false)">
+                            <i class="fas fa-thumbs-down"></i>
+                            不满意
+                        </button>
+                    </div>
+                    <div class="detailed-feedback" style="display: none;">
+                        <div class="feedback-buttons">
+                            <button class="feedback-button" data-type="clarity">清晰度</button>
+                            <button class="feedback-button" data-type="accuracy">准确性</button>
+                            <button class="feedback-button" data-type="helpfulness">帮助度</button>
+                        </div>
+                        <div class="rating-stars">
+                            ${'<span class="star">★</span>'.repeat(5)}
+                        </div>
+                        <div class="feedback-form">
+                            <textarea class="feedback-input" placeholder="请输入您的具体反馈..."></textarea>
+                            <button class="feedback-submit" onclick="submitFeedback('${messageId}')">提交反馈</button>
+                        </div>
+                    </div>
+                `;
+                responseDiv.appendChild(feedbackContainer);
+                
+                // 添加反馈按钮事件监听
+                const buttons = feedbackContainer.querySelectorAll('.feedback-button');
+                buttons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        buttons.forEach(b => b.classList.remove('selected'));
+                        this.classList.add('selected');
+                        feedbackContainer.querySelector('.feedback-form').style.display = 'block';
+                    });
+                });
+                
+                // 添加星级评分事件监听
+                const stars = feedbackContainer.querySelectorAll('.star');
+                stars.forEach((star, index) => {
+                    star.addEventListener('click', function() {
+                        stars.forEach((s, i) => {
+                            s.classList.toggle('filled', i <= index);
+                        });
+                    });
+                });
+                
                 return;
             }
             
             // 累积内容
             content += data.content;
-            console.log('Current content:', content); // 调试日志
             
             // 渲染内容
             try {
                 const htmlContent = marked.parse(content);
-                console.log('Parsed HTML:', htmlContent); // 调试日志
                 responseDiv.innerHTML = htmlContent;
                 
                 // 高亮代码块
@@ -311,7 +505,7 @@ function sendMessage() {
                 });
             } catch (parseError) {
                 console.error('Markdown parsing error:', parseError);
-                responseDiv.textContent = content; // 降级为纯文本显示
+                responseDiv.textContent = content;
             }
             
             // 滚动到底部
@@ -331,18 +525,73 @@ function sendMessage() {
     };
 }
 
-// 修改appendMessage函数
+// 修改appendMessage函数,添加反馈组件
 function appendMessage(message, isUser) {
     const chatHistory = document.getElementById('chat-history');
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${isUser ? 'user-message' : 'ai-message'}`;
     
-    // 对用户消息使用textContent，对AI消息使用innerHTML
     if (isUser) {
         messageDiv.textContent = message;
     } else {
+        // 为AI消息生成唯一ID
+        const messageId = 'msg_' + Date.now();
+        messageDiv.setAttribute('data-message-id', messageId);
+        
         try {
             messageDiv.innerHTML = marked.parse(message);
+            
+            // 添加反馈组件
+            const feedbackContainer = document.createElement('div');
+            feedbackContainer.className = 'feedback-container';
+            feedbackContainer.innerHTML = `
+                <div class="quick-feedback">
+                    <button class="quick-feedback-btn satisfied" onclick="handleQuickFeedback('${messageId}', true)">
+                        <i class="fas fa-thumbs-up"></i>
+                        满意
+                    </button>
+                    <button class="quick-feedback-btn unsatisfied" onclick="handleQuickFeedback('${messageId}', false)">
+                        <i class="fas fa-thumbs-down"></i>
+                        不满意
+                    </button>
+                </div>
+                <div class="detailed-feedback">
+                    <div class="feedback-buttons">
+                        <button class="feedback-button" data-type="clarity">清晰度</button>
+                        <button class="feedback-button" data-type="accuracy">准确性</button>
+                        <button class="feedback-button" data-type="helpfulness">帮助度</button>
+                    </div>
+                    <div class="rating-stars">
+                        ${'<span class="star">★</span>'.repeat(5)}
+                    </div>
+                    <div class="feedback-form">
+                        <textarea class="feedback-input" placeholder="请输入您的具体反馈..."></textarea>
+                        <button class="feedback-submit" onclick="submitFeedback('${messageId}')">提交反馈</button>
+                    </div>
+                </div>
+            `;
+            messageDiv.appendChild(feedbackContainer);
+            
+            // 添加快速反馈处理函数
+            const quickFeedbackBtns = feedbackContainer.querySelectorAll('.quick-feedback-btn');
+            quickFeedbackBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    quickFeedbackBtns.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    const detailedFeedback = feedbackContainer.querySelector('.detailed-feedback');
+                    detailedFeedback.classList.add('active');
+                });
+            });
+            
+            // 添加星级评分事件监听
+            const stars = feedbackContainer.querySelectorAll('.star');
+            stars.forEach((star, index) => {
+                star.addEventListener('click', function() {
+                    stars.forEach((s, i) => {
+                        s.classList.toggle('filled', i <= index);
+                    });
+                });
+            });
         } catch (error) {
             console.error('Markdown parsing error:', error);
             messageDiv.textContent = message;
@@ -353,8 +602,56 @@ function appendMessage(message, isUser) {
     chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
+// 添加提交反馈的函数
+function submitFeedback(messageId) {
+    const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
+    const feedbackContainer = messageDiv.querySelector('.feedback-container');
+    
+    const selectedType = feedbackContainer.querySelector('.feedback-button.selected');
+    const filledStars = feedbackContainer.querySelectorAll('.star.filled');
+    const comment = feedbackContainer.querySelector('.feedback-input').value;
+    
+    if (!selectedType || filledStars.length === 0) {
+        alert('请选择反馈类型���评分');
+        return;
+    }
+    
+    const feedbackData = {
+        message_id: messageId,
+        feedback_type: selectedType.dataset.type,
+        rating: filledStars.length,
+        comment: comment
+    };
+    
+    fetch('/submit_feedback', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(feedbackData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 隐藏反馈表单
+            feedbackContainer.style.display = 'none';
+            // 显示感谢信息
+            const thankMsg = document.createElement('div');
+            thankMsg.className = 'feedback-thank';
+            thankMsg.textContent = '感谢您的反馈！';
+            feedbackContainer.parentNode.appendChild(thankMsg);
+        } else {
+            alert('提交反馈失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('提交反馈时发生错误');
+    });
+}
+
 function clearHistory() {
-    if (confirm('确定要清除对话��史吗？')) {
+    if (confirm('确定要清除对话历史吗？')) {
         fetch('/clear_chat_history', {
             method: 'POST',
             headers: {
@@ -375,5 +672,57 @@ document.getElementById('user-input').addEventListener('keypress', function(e) {
         sendMessage();
     }
 });
+
+// 添加快速反馈处理函数
+function handleQuickFeedback(messageId, isSatisfied) {
+    const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
+    const feedbackContainer = messageDiv.querySelector('.feedback-container');
+    const quickFeedbackBtns = feedbackContainer.querySelectorAll('.quick-feedback-btn');
+    const detailedFeedback = feedbackContainer.querySelector('.detailed-feedback');
+    
+    // 更新按钮状态
+    quickFeedbackBtns.forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+    
+    // 发送快速反馈
+    fetch('/submit_feedback', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message_id: messageId,
+            is_satisfied: isSatisfied,
+            feedback_type: 'quick',
+            rating: isSatisfied ? 5 : 1
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 如果不满意，显示详细反馈表单
+            if (!isSatisfied) {
+                detailedFeedback.classList.add('active');
+            } else {
+                // 显示感谢信息
+                const thankMsg = document.createElement('div');
+                thankMsg.className = 'feedback-thank';
+                thankMsg.textContent = '感谢您的反馈！';
+                feedbackContainer.appendChild(thankMsg);
+                
+                // 隐藏快速反馈按钮
+                setTimeout(() => {
+                    feedbackContainer.querySelector('.quick-feedback').style.display = 'none';
+                }, 2000);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('提交反馈时发生错误');
+    });
+}
 </script>
 {% endblock %} 
