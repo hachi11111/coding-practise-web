@@ -13,12 +13,14 @@
 
 
 ## 环境搭建
-
+``` python
 pip install -r requirements.txt
 pip install openai
-
+```
 ## 运行
+``` python
 python 1.py
+```
 
-然后打开浏览器，输入http://127.0.0.1:5000/，即可看到题目。
-
+然后打开浏览器，输入http://127.0.0.1:5000/ 后即可看到题目。
+ 
