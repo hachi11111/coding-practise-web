@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import json
 from datetime import datetime, timedelta
+import requests
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///problems.db'
@@ -27,6 +28,10 @@ ALLOWED_EXTENSIONS = {'py', 'java', 'cpp', 'c'}
 
 # 确保上传目录存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# 添加DeepSeek API配置
+DEEPSEEK_API_KEY = "your_api_key_here"  # 请替换为你的实际API密钥
+DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"  # 请替换为实际的API地址
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -347,7 +352,7 @@ def submit_answer():
     )
     db.session.add(submission)
     
-    # 如果是正确答案且之前没有解决过，更新已解决题目列表
+    # 如果是正��答案且之前没有解决过，更新已解决题目列表
     user = User.query.get(user_id)
     solved_problems = set(user.solved_problems.split(',')) if user.solved_problems else set()
     first_solve = False
@@ -537,7 +542,7 @@ def change_password():
     
     user.set_password(new_password)
     db.session.commit()
-    flash('密码修改成功')
+    flash('���码修改成功')
     return redirect(url_for('user_settings'))
 
 def calculate_user_level(solved_count):
@@ -571,7 +576,7 @@ def get_user_stats(user_id):
     submissions = Submission.query.filter_by(user_id=user_id).all()
     solved_problems = set(user.solved_problems.split(',')) if user.solved_problems else set()
     
-    # 获取已���决的题目
+    # 获取已解决的题目
     solved_problems_list = Problem.query.filter(Problem.id.in_(solved_problems)).all() if solved_problems else []
     
     # 计算不同难度的题目数量
@@ -760,6 +765,61 @@ def get_base_context(user_id):
         'pass_rate': stats['pass_rate']
     }
 
+# 添加新的路由处理AI对话
+@app.route('/ai_tutor')
+@login_required
+def ai_tutor():
+    user = User.query.get(session['user_id'])
+    stats = get_user_stats(user.id)
+    return render_template('ai_tutor.html',
+                         current_user=user,
+                         user_level=stats['user_level'],
+                         solved_count=stats['solved_count'],
+                         submission_count=stats['submission_count'],
+                         pass_rate=stats['pass_rate'])
+
+@app.route('/ai_chat', methods=['POST'])
+@login_required
+def ai_chat():
+    user_message = request.json.get('message')
+    problem_id = request.json.get('problem_id')
+    
+    # 如果提供了problem_id，获取题目信息
+    context = ""
+    if problem_id:
+        problem = Problem.query.get(problem_id)
+        if problem:
+            context = f"题目：{problem.title}\n描述：{problem.content}\n"
+    
+    # 构建发送给AI的消息
+    messages = [
+        {"role": "system", "content": "你是一个专业的算法教练，帮助用户理解和解决算法问题。"},
+        {"role": "user", "content": context + user_message}
+    ]
+    
+    try:
+        response = requests.post(
+            DEEPSEEK_API_URL,
+            headers={
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "deepseek-chat",
+                "messages": messages,
+                "temperature": 0.7
+            }
+        )
+        
+        if response.status_code == 200:
+            ai_response = response.json()['choices'][0]['message']['content']
+            return jsonify({"success": True, "response": ai_response})
+        else:
+            return jsonify({"success": False, "error": "API调用失败"})
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 if __name__ == '__main__':
     # 删除旧的数据库文件
     db_path = 'code/problems.db'
@@ -868,7 +928,7 @@ if __name__ == '__main__':
             ),
             Problem(
                 title='盛最多水的容器',
-                content='给你 n 个非负整数 a1，a2，...，an，每个数代表坐标中的一个点 (i, ai)。找出其中的两条线，使得它们与 x 轴共同构成的容器可以容纳最多的水。\n示例：输入 [1,8,6,2,5,4,8,3,7] 输出：49',
+                content='给你 n 个非负整数 a1，a2，...，an，每个数代表坐标中的一个点 (i, ai)。找出其中的两条线，使���它们与 x 轴共同构成的容器可以容纳最多的水。\n示例：输入 [1,8,6,2,5,4,8,3,7] 输出：49',
                 answer='49',
                 difficulty=2,
                 test_cases=json.dumps([

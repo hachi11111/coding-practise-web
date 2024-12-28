@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>AI算法教练</h4>
+                </div>
+                <div class="card-body">
+                    <div id="chat-history" class="mb-3" style="height: 400px; overflow-y: auto;">
+                        <!-- 聊天记录将在这里显示 -->
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="user-input" class="form-control" placeholder="输入你的问题...">
+                        <select id="problem-select" class="form-control" style="max-width: 200px;">
+                            <option value="">选择相关题目(可选)</option>
+                            {% for problem in problems %}
+                            <option value="{{ problem.id }}">{{ problem.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-primary" onclick="sendMessage()">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>提示</h5>
+                </div>
+                <div class="card-body">
+                    <p>你可以向AI教练询问：</p>
+                    <ul>
+                        <li>算法概念解释</li>
+                        <li>题目思路分析</li>
+                        <li>代码优化建议</li>
+                        <li>时间复杂度分析</li>
+                        <li>相似题目推荐</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function appendMessage(message, isUser) {
+    const chatHistory = document.getElementById('chat-history');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'} mb-2`;
+    messageDiv.style.padding = '10px';
+    messageDiv.style.borderRadius = '5px';
+    messageDiv.style.backgroundColor = isUser ? '#e3f2fd' : '#f5f5f5';
+    messageDiv.textContent = message;
+    chatHistory.appendChild(messageDiv);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+function sendMessage() {
+    const userInput = document.getElementById('user-input');
+    const problemSelect = document.getElementById('problem-select');
+    const message = userInput.value.trim();
+    const problemId = problemSelect.value;
+    
+    if (!message) return;
+    
+    appendMessage(message, true);
+    userInput.value = '';
+    
+    fetch('/ai_chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: message,
+            problem_id: problemId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            appendMessage(data.response, false);
+        } else {
+            appendMessage('抱歉，发生了错误：' + data.error, false);
+        }
+    })
+    .catch(error => {
+        appendMessage('发生了错误：' + error, false);
+    });
+}
+
+// 按Enter发送消息
+document.getElementById('user-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+</script>
+
+<style>
+.user-message {
+    margin-left: 20%;
+    margin-right: 5px;
+}
+
+.ai-message {
+    margin-right: 20%;
+    margin-left: 5px;
+}
+</style>
+{% endblock %} 
