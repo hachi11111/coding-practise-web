@@ -1,5 +1,62 @@
-<li class="nav-item">
-    <a class="nav-link" href="{{ url_for('ai_tutor') }}">
-        <i class="fas fa-robot"></i> AI辅导
-    </a>
-</li> 
+<!DOCTYPE html>
+<html>
+<head>
+    <title>算法刷题网站</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="{{ url_for('index') }}">算法刷题</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('index') }}">主页</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('algorithm_basic') }}">算法基础</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('language_basic') }}">语言基础</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('algorithm_advanced') }}">算法进阶</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('ai_tutor') }}">
+                        <i class="fas fa-robot"></i> AI辅导
+                    </a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                {% if current_user %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('user_profile') }}">个人中心</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('logout') }}">退出</a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('login') }}">登录</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('register') }}">注册</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html> 

@@ -1,13 +1,40 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>在线题目练习系统</title>
-</head>
-<body>
-    <h1>欢迎来到在线题目练习系统</h1>
-    <nav>
-        <a href="{{ url_for('login') }}">登录</a>
-        <a href="{{ url_for('register') }}">注册</a>
-    </nav>
-</body>
-</html> 
+{% extends "base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+    <h1 class="display-4">欢迎来到算法刷题网站</h1>
+    <p class="lead">这里有丰富的算法题目和学习资源，帮助你提升编程能力</p>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">算法基础</h5>
+                <p class="card-text">学习基础算法概念和数据结构</p>
+                <a href="{{ url_for('algorithm_basic') }}" class="btn btn-primary">开始学习</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">语言基础</h5>
+                <p class="card-text">掌握编程语言基础知识</p>
+                <a href="{{ url_for('language_basic') }}" class="btn btn-primary">开始学习</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">AI辅导</h5>
+                <p class="card-text">获取AI助手的个性化指导</p>
+                <a href="{{ url_for('ai_tutor') }}" class="btn btn-success">
+                    <i class="fas fa-robot"></i> 开始对话
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
