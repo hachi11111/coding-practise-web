@@ -5,8 +5,11 @@
     <div class="row">
         <div class="col-md-8">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h4>AI算法教练</h4>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="clearHistory()">
+                        清除对话历史
+                    </button>
                 </div>
                 <div class="card-body">
                     <div id="chat-history" class="mb-3" style="height: 400px; overflow-y: auto;">
@@ -98,6 +101,24 @@ document.getElementById('user-input').addEventListener('keypress', function(e) {
         sendMessage();
     }
 });
+
+function clearHistory() {
+    if (confirm('确定要清除对话历史吗？')) {
+        fetch('/clear_chat_history', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const chatHistory = document.getElementById('chat-history');
+                chatHistory.innerHTML = '';
+            }
+        });
+    }
+}
 </script>
 
 <style>

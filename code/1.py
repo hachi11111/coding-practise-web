@@ -15,6 +15,7 @@ import tempfile
 import json
 from datetime import datetime, timedelta
 import requests
+from openai import OpenAI
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///problems.db'
@@ -29,9 +30,17 @@ ALLOWED_EXTENSIONS = {'py', 'java', 'cpp', 'c'}
 # 确保上传目录存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# 添加DeepSeek API配置
-DEEPSEEK_API_KEY = "your_api_key_here"  # 请替换为你的实际API密钥
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"  # 请替换为实际的API地址
+# 初始化OpenAI客户端
+client = OpenAI(api_key="your_api_key_here", base_url="https://api.deepseek.com")
+
+# 添加一个新的模型用于存储对话历史
+class ChatHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    messages = db.Column(db.Text, default='[]')  # 存储JSON格式的消息历史
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('chat_histories', lazy=True))
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -267,7 +276,7 @@ def judge_code(problem_id, submitted_code, language='python'):
                     'passed': False
                 }
             ],
-            'error': "测试用例格式错误"
+            'error': "测试用例格式���误"
         }
 
     # 运行每个测试用例
@@ -352,7 +361,7 @@ def submit_answer():
     )
     db.session.add(submission)
     
-    # 如果是正��答案且之前没有解决过，更新已解决题目列表
+    # 如果是正确答案且之前没有解决过，更新已解决题目列表
     user = User.query.get(user_id)
     solved_problems = set(user.solved_problems.split(',')) if user.solved_problems else set()
     first_solve = False
@@ -388,7 +397,7 @@ def get_submission_history(user_id):
     submission_counts = {}
     today = datetime.now().date()
     
-    # 初始化所有日期的数据
+    # 初始化���有日期的数据
     for i in range(365):
         date = today - timedelta(days=i)
         date_str = date.strftime('%Y-%m-%d')
@@ -533,7 +542,7 @@ def change_password():
     confirm_password = request.form.get('confirm_password')
     
     if not user.check_password(current_password):
-        flash('当前密码错误')
+        flash('当前密��错误')
         return redirect(url_for('user_settings'))
     
     if new_password != confirm_password:
@@ -542,7 +551,7 @@ def change_password():
     
     user.set_password(new_password)
     db.session.commit()
-    flash('���码修改成功')
+    flash('密码修改成功')
     return redirect(url_for('user_settings'))
 
 def calculate_user_level(solved_count):
@@ -614,7 +623,7 @@ ALGORITHM_BASIC_TOPICS = [
                 ],
                 'exercises': [
                     {'title': '分析简单循环的时间复杂度', 'difficulty': '简单'},
-                    {'title': '分析嵌套循环的时间复杂度', 'difficulty': '中等'},
+                    {'title': '分���嵌套循环的时间复杂度', 'difficulty': '中等'},
                     {'title': '优化算法的时间复杂度', 'difficulty': '困难'}
                 ]
             }
@@ -638,7 +647,7 @@ ALGORITHM_BASIC_TOPICS = [
             },
             {
                 'name': '链表',
-                'content': '理解链表的结构和基本操作',
+                'content': '理解链表的结��和基本操作',
                 'implementations': {
                     'python': '# 链表节点定义\nclass ListNode:\n    def __init__(self, val=0):\n        self.val = val\n        self.next = None',
                     'cpp': '// 链表节点定义\nstruct ListNode {\n    int val;\n    ListNode* next;\n    ListNode(int x) : val(x), next(NULL) {}\n};'
@@ -704,7 +713,7 @@ ALGORITHM_ADVANCED_TOPICS = [
     },
     {
         'title': '动态规划',
-        'description': '掌握动态规划的设计方法和应用',
+        'description': '掌握动态��划的设计方法和应用',
         'sections': ['基本概念', '状态设计', '状态转移', '经典问题']
     },
     {
@@ -765,24 +774,46 @@ def get_base_context(user_id):
         'pass_rate': stats['pass_rate']
     }
 
-# 添加新的路由处理AI对话
+# 修改ai_tutor路由
 @app.route('/ai_tutor')
 @login_required
 def ai_tutor():
     user = User.query.get(session['user_id'])
     stats = get_user_stats(user.id)
+    problems = Problem.query.all()  # 获取所有题目供选择
+    
+    # 获取或创建用户的对话历史
+    chat_history = ChatHistory.query.filter_by(user_id=user.id).first()
+    if not chat_history:
+        chat_history = ChatHistory(user_id=user.id)
+        db.session.add(chat_history)
+        db.session.commit()
+    
     return render_template('ai_tutor.html',
                          current_user=user,
+                         problems=problems,
                          user_level=stats['user_level'],
                          solved_count=stats['solved_count'],
                          submission_count=stats['submission_count'],
                          pass_rate=stats['pass_rate'])
 
+# 修改ai_chat路由
 @app.route('/ai_chat', methods=['POST'])
 @login_required
 def ai_chat():
+    user = User.query.get(session['user_id'])
     user_message = request.json.get('message')
     problem_id = request.json.get('problem_id')
+    
+    # 获取用户的对话历史
+    chat_history = ChatHistory.query.filter_by(user_id=user.id).first()
+    if not chat_history:
+        chat_history = ChatHistory(user_id=user.id)
+        db.session.add(chat_history)
+        db.session.commit()
+    
+    # 解析存储的消息历史
+    messages = json.loads(chat_history.messages)
     
     # 如果提供了problem_id，获取题目信息
     context = ""
@@ -791,34 +822,61 @@ def ai_chat():
         if problem:
             context = f"题目：{problem.title}\n描述：{problem.content}\n"
     
-    # 构建发送给AI的消息
-    messages = [
-        {"role": "system", "content": "你是一个专业的算法教练，帮助用户理解和解决算法问题。"},
-        {"role": "user", "content": context + user_message}
-    ]
+    # 添加系统消息（如果是新对话）
+    if not messages:
+        messages.append({
+            "role": "system",
+            "content": "你是一个专业的算法教练，帮助用户理解和解决算法问题。请提供清晰的解释和具体的示例。"
+        })
+    
+    # 添加用户消息
+    messages.append({
+        "role": "user",
+        "content": context + user_message
+    })
     
     try:
-        response = requests.post(
-            DEEPSEEK_API_URL,
-            headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "deepseek-chat",
-                "messages": messages,
-                "temperature": 0.7
-            }
+        # 调用DeepSeek API
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=messages,
+            temperature=0.7
         )
         
-        if response.status_code == 200:
-            ai_response = response.json()['choices'][0]['message']['content']
-            return jsonify({"success": True, "response": ai_response})
-        else:
-            return jsonify({"success": False, "error": "API调用失败"})
-            
+        # 获取AI回复
+        ai_message = response.choices[0].message
+        
+        # 将AI回复添加到消息历史
+        messages.append({
+            "role": "assistant",
+            "content": ai_message.content
+        })
+        
+        # 更新数据库中的消息历史
+        chat_history.messages = json.dumps(messages)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "response": ai_message.content
+        })
+        
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+# 添加清除对话历史的路由
+@app.route('/clear_chat_history', methods=['POST'])
+@login_required
+def clear_chat_history():
+    user = User.query.get(session['user_id'])
+    chat_history = ChatHistory.query.filter_by(user_id=user.id).first()
+    if chat_history:
+        chat_history.messages = '[]'
+        db.session.commit()
+    return jsonify({"success": True})
 
 if __name__ == '__main__':
     # 删除旧的数据库文件
@@ -928,7 +986,7 @@ if __name__ == '__main__':
             ),
             Problem(
                 title='盛最多水的容器',
-                content='给你 n 个非负整数 a1，a2，...，an，每个数代表坐标中的一个点 (i, ai)。找出其中的两条线，使���它们与 x 轴共同构成的容器可以容纳最多的水。\n示例：输入 [1,8,6,2,5,4,8,3,7] 输出：49',
+                content='给你 n 个非负整数 a1，a2，...，an，每个数代表坐标中的一个点 (i, ai)。找出其中的两条线，使它们与 x 轴共同构成的容器可以容纳最多的水。\n示例：输入 [1,8,6,2,5,4,8,3,7] 输出：49',
                 answer='49',
                 difficulty=2,
                 test_cases=json.dumps([
