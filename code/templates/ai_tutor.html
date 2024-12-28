@@ -2,6 +2,28 @@
 
 {% block title %}AI算法辅导{% endblock %}
 
+{% block extra_head %}
+<!-- 添加Markdown支持 -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- 添加代码高亮支持 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- 添加MathJax支持 -->
+<script>
+MathJax = {
+    tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true
+    },
+    options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row">
@@ -17,11 +39,15 @@
                     <div id="chat-history" class="mb-3" style="height: 400px; overflow-y: auto;">
                         <!-- 聊天记录将在这里显示 -->
                     </div>
+                    <div id="debug-info" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                        <h6>Debug Info:</h6>
+                        <pre id="debug-content" style="white-space: pre-wrap;"></pre>
+                    </div>
                     <div class="input-group">
                         <select id="question-type" class="form-control" style="max-width: 150px;">
                             <option value="concept">概念解释</option>
                             <option value="solution">解题思路</option>
-                            <option value="debug">代码��试</option>
+                            <option value="debug">代码调试</option>
                             <option value="optimize">代码优化</option>
                         </select>
                         <select id="problem-select" class="form-control" style="max-width: 200px;">
@@ -39,7 +65,7 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">
-                    <h5>辅导功能说明</h5>
+                    <h5>导功能说明</h5>
                 </div>
                 <div class="card-body">
                     <div class="feature-list">
@@ -95,7 +121,11 @@
     padding: 15px;
     border-radius: 8px;
     max-width: 85%;
-    white-space: pre-wrap;
+    white-space: normal;
+    word-wrap: break-word;
+    font-size: 14px;
+    line-height: 1.6;
+    letter-spacing: 0.5px;
 }
 
 .user-message {
@@ -106,13 +136,15 @@
 .ai-message {
     background: #f5f5f5;
     margin-right: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 #chat-history {
-    padding: 15px;
+    padding: 20px;
     background: #fff;
     border: 1px solid #dee2e6;
     border-radius: 8px;
+    font-size: 14px;
 }
 
 .ai-message p {
@@ -124,17 +156,109 @@
     border-bottom: 1px solid #eee;
     padding-bottom: 8px;
 }
+
+/* 添加Markdown内容样式 */
+.markdown-content {
+    margin: 8px 0;
+    line-height: 1.6;
+    letter-spacing: 0.5px;
+    word-spacing: 1px;
+}
+
+.markdown-content:not(:last-child) {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    color: #2c3e50;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: 0.5px;
+}
+
+.markdown-content p {
+    margin: 12px 0;
+    text-align: justify;
+}
+
+.markdown-content code {
+    background: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 13px;
+    letter-spacing: 0;
+}
+
+.markdown-content pre {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 15px 0;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    letter-spacing: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    padding-left: 24px;
+    margin: 12px 0;
+    line-height: 1.8;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #3498db;
+    margin: 12px 0;
+    padding: 12px 20px;
+    background: #f8f9fa;
+    color: #2c3e50;
+    font-style: italic;
+}
+
+/* 数学公式样式 */
+.katex-display {
+    margin: 16px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+    padding: 8px 0;
+}
+
+.katex {
+    font-size: 1.1em;
+}
+
+/* 添加代码高亮样式 */
+.hljs {
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: 1em;
+    margin: 0.5em 0;
+}
 </style>
 
 <script>
-function appendMessage(message, isUser) {
-    const chatHistory = document.getElementById('chat-history');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message ${isUser ? 'user-message' : 'ai-message'}`;
-    messageDiv.textContent = message;
-    chatHistory.appendChild(messageDiv);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-}
+// 配置marked
+marked.setOptions({
+    renderer: new marked.Renderer(),
+    highlight: function(code, lang) {
+        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+        return hljs.highlight(code, { language }).value;
+    },
+    langPrefix: 'hljs language-',
+    gfm: true,
+    breaks: true
+});
 
 function sendMessage() {
     const userInput = document.getElementById('user-input');
@@ -146,53 +270,91 @@ function sendMessage() {
     
     if (!message) return;
     
+    // 显示用户消息
     appendMessage(message, true);
     userInput.value = '';
     
-    // 创建新的消息容器
+    // 创建AI回复容器
     const responseDiv = document.createElement('div');
     responseDiv.className = 'chat-message ai-message';
     document.getElementById('chat-history').appendChild(responseDiv);
     
-    let currentParagraph = document.createElement('p');
-    responseDiv.appendChild(currentParagraph);
+    let content = '';
     
     // 创建EventSource连接
-    const eventSource = new EventSource(`/ai_chat?${new URLSearchParams({
-        message: message,
-        type: type,
-        problem_id: problemId || ''
-    })}`);
+    const eventSource = new EventSource(`/ai_chat?message=${encodeURIComponent(message)}&type=${encodeURIComponent(type)}&problem_id=${encodeURIComponent(problemId || '')}`);
     
     eventSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        if (data.content === '[DONE]') {
-            eventSource.close();
-            return;
+        try {
+            const data = JSON.parse(event.data);
+            console.log('Received chunk:', data.content); // 调试日志
+            
+            if (data.content === '[DONE]') {
+                console.log('Stream completed'); // 调试日志
+                eventSource.close();
+                return;
+            }
+            
+            // 累积内容
+            content += data.content;
+            console.log('Current content:', content); // 调试日志
+            
+            // 渲染内容
+            try {
+                const htmlContent = marked.parse(content);
+                console.log('Parsed HTML:', htmlContent); // 调试日志
+                responseDiv.innerHTML = htmlContent;
+                
+                // 高亮代码块
+                responseDiv.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            } catch (parseError) {
+                console.error('Markdown parsing error:', parseError);
+                responseDiv.textContent = content; // 降级为纯文本显示
+            }
+            
+            // 滚动到底部
+            const chatHistory = document.getElementById('chat-history');
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            
+        } catch (error) {
+            console.error('Message processing error:', error);
+            responseDiv.textContent = 'Error processing response';
         }
-        
-        // 检查是否是新段落
-        if (data.content.includes('---')) {
-            currentParagraph = document.createElement('p');
-            responseDiv.appendChild(currentParagraph);
-            currentParagraph.textContent = data.content.replace('---', '').trim();
-        } else {
-            currentParagraph.textContent += data.content;
-        }
-        
-        // 自动滚动到底部
-        const chatHistory = document.getElementById('chat-history');
-        chatHistory.scrollTop = chatHistory.scrollHeight;
     };
     
-    eventSource.onerror = function() {
+    eventSource.onerror = function(error) {
+        console.error('EventSource error:', error);
         eventSource.close();
-        currentParagraph.textContent += '\n[连接已关闭]';
+        responseDiv.textContent += '\n[Connection closed]';
     };
 }
 
+// 修改appendMessage函数
+function appendMessage(message, isUser) {
+    const chatHistory = document.getElementById('chat-history');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${isUser ? 'user-message' : 'ai-message'}`;
+    
+    // 对用户消息使用textContent，对AI消息使用innerHTML
+    if (isUser) {
+        messageDiv.textContent = message;
+    } else {
+        try {
+            messageDiv.innerHTML = marked.parse(message);
+        } catch (error) {
+            console.error('Markdown parsing error:', error);
+            messageDiv.textContent = message;
+        }
+    }
+    
+    chatHistory.appendChild(messageDiv);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
 function clearHistory() {
-    if (confirm('确定要清除对话历史吗？')) {
+    if (confirm('确定要清除对话��史吗？')) {
         fetch('/clear_chat_history', {
             method: 'POST',
             headers: {
