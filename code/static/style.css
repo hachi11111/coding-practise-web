@@ -2041,4 +2041,24 @@ button:hover {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-5px); }
 }
-  
+
+.logo-container {
+    text-align: center; /* 内容居中 */
+    margin: 20px 0; /* 上下边距 */
+}
+
+/* Logo 图片样式 */
+.logo {
+    width: 250px; /* 图片宽度 */
+    height: auto; /* 高度自适应 */
+    border-radius: 10px; /* 圆角 */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 阴影 */
+}
+
+/* 网站介绍样式 */
+.site-description {
+    margin-top: 10px; /* 与图片的间距 */
+    font-size: 16px; /* 字体大小 */
+    color: #333; /* 字体颜色 */
+    font-style: italic; /* 斜体 */
+}

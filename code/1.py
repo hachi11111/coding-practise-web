@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 import requests
 from openai import OpenAI
 
-app = Flask(__name__)
+app = Flask(__name__,)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///problems.db'
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 db = SQLAlchemy(app)
@@ -64,6 +64,8 @@ class Problem(db.Model):
     content = db.Column(db.Text, nullable=False) 
     answer = db.Column(db.Text, nullable=False)
     difficulty = db.Column(db.Integer) # 1-简单, 2-中等, 3-困难
+    category = db.Column(db.String(50), nullable=True)  # 新增字段
+    tags = db.Column(db.String(100), nullable=True)     # 新增字段
     standard_code = db.Column(db.Text, nullable=True) # 标准答案代码
     test_cases = db.Column(db.Text, nullable=True) # 测试用例，JSON格式存储
     
@@ -128,13 +130,21 @@ def register():
         username = request.form.get('username')
         password = request.form.get('password')
         
+        # 检查用户名是否已存在
+        if User.query.filter_by(username=username).first():
+            return render_template('register.html', error="用户名已存在")
+
         # 创建新用户并设置密码
         user = User(username=username, password_hash='', solved_problems='')
         user.set_password(password)  # 使用set_password方法设置密码
         db.session.add(user)
         db.session.commit()
-        
-        return redirect(url_for('login'))
+
+        # 注册成功后自动登录
+        session['user_id'] = user.id  # 将用户ID存入session
+        flash('注册成功！', 'success')  # 添加成功提示
+        return redirect(url_for('dashboard'))  # 重定向到仪表板
+
     return render_template('register.html')
 
 # 用户登录
@@ -168,6 +178,68 @@ def logout():
     session.clear()
     flash('您已成功退出登录')
     return redirect(url_for('index'))
+# 添加题库管理路由
+@app.route('/manage_problems', methods=['GET', 'POST'])
+@login_required
+def manage_problems():
+    if request.method == 'POST':
+        # 获取表单数据
+        title = request.form.get('title')
+        description = request.form.get('description')
+        answer = request.form.get('answer')
+        difficulty = int(request.form.get('difficulty'))
+        category = request.form.get('category')
+        tags = request.form.get('tags', '')
+
+        # 创建题目对象
+        problem = Problem(
+            title=title,
+            description=description,
+            answer=answer,
+            difficulty=difficulty,
+            category=category,
+            tags=tags
+        )
+
+        # 保存到数据库
+        db.session.add(problem)
+        db.session.commit()
+        flash('题目添加成功！', 'success')
+        return redirect(url_for('manage_problems'))
+
+    # 获取所有题目
+    problems = Problem.query.all()
+    return render_template('manage_problems.html', problems=problems)
+
+# 用户搜题功能
+@app.route('/search_problems', methods=['GET'])
+@login_required
+def search_problems():
+    # 获取搜索参数
+    keyword = request.args.get('keyword', '').strip()
+    category = request.args.get('category', '')
+    difficulty = request.args.get('difficulty', '')
+    tag = request.args.get('tag', '')
+
+    # 构建查询条件
+    query = Problem.query
+    if keyword:
+        query = query.filter(
+            (Problem.title.contains(keyword))  # 仅搜索标题
+            # 如果 description 字段不存在，可以移除下面这行
+            # | (Problem.description.contains(keyword))
+        )
+    if category:
+        query = query.filter_by(category=category)
+    if difficulty:
+        query = query.filter_by(difficulty=difficulty)
+    if tag:
+        query = query.filter(Problem.tags.contains(tag))
+
+    # 执行查询
+    problems = query.all()
+    return render_template('search_problems.html', problems=problems, keyword=keyword)
+
 
 # 用户主页
 @app.route('/dashboard')
@@ -230,7 +302,7 @@ def run_python_code(code, test_input):
 
     try:
         # 运行代码并捕获输出
-        process = subprocess.run(['python', temp_file], 
+        process = subprocess.run(['python3', temp_file], 
                                input=str(test_input),
                                text=True,
                                capture_output=True,
@@ -260,78 +332,121 @@ def judge_code(problem_id, submitted_code, language='python'):
     # 解析测试用例
     try:
         test_cases = json.loads(problem.test_cases) if problem.test_cases else []
-        if not test_cases:
-            return {
-                'score': 0,
-                'passed_count': 0,
-                'total_count': 0,
-                'results': [
-                    {
-                        'input': 'No test cases',
-                        'expected': 'No test cases',
-                        'actual': 'No test cases',
-                        'passed': False
-                    }
-                ],
-                'error': "题目暂无测试用例"
-            }
     except:
         return {
             'score': 0,
             'passed_count': 0,
             'total_count': 0,
-            'results': [
-                {
-                    'input': 'Invalid test cases',
-                    'expected': 'Invalid test cases',
-                    'actual': 'Invalid test cases',
-                    'passed': False
-                }
-            ],
+            'results': [],
             'error': "测试用例格式错误"
         }
 
-    # 运行每个测试用例
     results = []
-    if not test_cases:
-        return {
-            'score': 0,
-            'passed_count': 0,
-            'total_count': 0,
-            'results': [],
-            'error': "无测试用例"
-        }
-
     for test_case in test_cases:
-        input_data = test_case.get('input')
-        expected_output = str(test_case.get('output'))
+        try:
+            # 创建临时Python文件，指定UTF-8编码
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+                # 添加编码声明和必要的导入
+                wrapped_code = f"""# -*- coding: utf-8 -*-
+from typing import List
 
-        if language == 'python':
-            # 将提交的代码包装在函数中
-            wrapped_code = f"""
 {submitted_code}
 
+# 测试代码
 if __name__ == '__main__':
-    import sys
-    input_data = {repr(input_data)}
-    result = solution(input_data)
-    print(result)
+    # 创建Solution实例
+    solution = Solution()
+    
+    # 处理两数之和问题的特殊情况
+    if "{problem.title}" == "两数之和":
+        nums = {repr(test_case['input'][:-1])}  # 除最后一个数外的所有数作为nums
+        target = {repr(test_case['input'][-1])}  # 最后一个数作为target
+        result = solution.twoSum(nums=nums, target=target)
+    else:
+        # 其他题目的处理...
+        result = solution.isPalindrome(x=test_case['input'])
+    
+    print(repr(result))
 """
-            actual_output = run_python_code(wrapped_code, input_data)
-            
-            # 比较输出
-            is_correct = str(actual_output).strip() == str(expected_output).strip()
+                f.write(wrapped_code)
+                temp_file = f.name
+
+            # 运行代码并获取输出
+            try:
+                process = subprocess.run(
+                    ['python3', temp_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    encoding='utf-8'
+                )
+                
+                if process.returncode != 0:
+                    # 代码执行出错
+                    error_msg = process.stderr.strip() if process.stderr else "Unknown Error"
+                    results.append({
+                        'input': test_case['input'],
+                        'expected': test_case['output'],
+                        'actual': f"Error: {error_msg}",
+                        'passed': False
+                    })
+                    continue
+
+                # 获取输出并评判
+                try:
+                    actual_output = eval(process.stdout.strip())  # 安全地解析输出
+                    
+                    expected_output = test_case['output']
+                    
+                    # 比较结果
+                    is_correct = actual_output == expected_output
+                    results.append({
+                        'input': test_case['input'],
+                        'expected': expected_output,
+                        'actual': actual_output,
+                        'passed': is_correct
+                    })
+                except Exception as e:
+                    results.append({
+                        'input': test_case['input'],
+                        'expected': test_case['output'],
+                        'actual': f"Output parsing error: {str(e)}",
+                        'passed': False
+                    })
+
+            except subprocess.TimeoutExpired:
+                results.append({
+                    'input': test_case['input'],
+                    'expected': test_case['output'],
+                    'actual': "Time Limit Exceeded",
+                    'passed': False
+                })
+            except Exception as e:
+                results.append({
+                    'input': test_case['input'],
+                    'expected': test_case['output'],
+                    'actual': f"Runtime Error: {str(e)}",
+                    'passed': False
+                })
+            finally:
+                # 清理临时文件
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+                
+        except Exception as e:
             results.append({
-                'input': input_data,
-                'expected': expected_output,
-                'actual': actual_output,
-                'passed': is_correct
+                'input': test_case['input'],
+                'expected': test_case['output'],
+                'actual': f"System Error: {str(e)}",
+                'passed': False
             })
 
-    # 计算得分
+    # 计算得分和通过率
     passed_count = sum(1 for r in results if r['passed'])
     total_count = len(results)
-    score = (passed_count / total_count) * 100 if total_count > 0 else 0
+    score = (passed_count / total_count * 100) if total_count > 0 else 0
 
     return {
         'score': score,
@@ -424,21 +539,22 @@ def get_submission_history(user_id):
     
     return submission_counts
 
-# 题目管理
-@app.route('/manage_problems', methods=['GET', 'POST'])
-def manage_problems():
-    if request.method == 'POST':
-        title = request.form.get('title')
-        content = request.form.get('content')
-        answer = request.form.get('answer')
-        difficulty = int(request.form.get('difficulty'))
+# # 题目管理
+# @app.route('/manage_problems', methods=['GET', 'POST'])
+# def manage_problems():
+#     if request.method == 'POST':
+#         title = request.form.get('title')
+#         content = request.form.get('content')
+#         answer = request.form.get('answer')
+#         difficulty = int(request.form.get('difficulty'))
         
-        problem = Problem(title=title, content=content, answer=answer, difficulty=difficulty)
-        db.session.add(problem)
-        db.session.commit()
+#         problem = Problem(title=title, content=content, answer=answer, difficulty=difficulty)
+#         db.session.add(problem)
+
+#         db.session.commit()
         
-    problems = Problem.query.all()
-    return render_template('manage_problems.html', problems=problems)
+#     problems = Problem.query.all()
+#     return render_template('manage_problems.html', problems=problems)
 
 # 添加题目详情路由
 @app.route('/problem/<int:problem_id>')
@@ -734,7 +850,9 @@ ALGORITHM_ADVANCED_TOPICS = [
         'sections': ['最短路', '最小生成树', '网络流', '二分图匹配']
     }
 ]
-
+@app.route('/logo')
+def get_logo():
+    return app.send_static_file('pic1.jpg')
 @app.route('/algorithm/basic')
 @login_required
 def algorithm_basic():
@@ -1022,6 +1140,57 @@ def update_ai_prompt_template(feedback_type, need_improvement):
    - 进阶主题
 '''
 
+@app.route('/check_code', methods=['POST'])
+@login_required
+def check_code():
+    try:
+        data = request.json
+        code = data.get('code')
+        language = data.get('language', 'python')
+        problem_id = data.get('problem_id')
+        
+        # 获取题目信息和测试用例
+        problem = Problem.query.get(problem_id)
+        if not problem:
+            return jsonify({
+                'status': 'error',
+                'message': '题目不存在'
+            })
+            
+        # 运行代码并检查结果
+        result = judge_code(problem_id, code, language)
+        
+        # 判断是否通过所有测试用例
+        is_accepted = result['score'] >= 100
+        
+        # 记录提交历史
+        submission = Submission(
+            user_id=session['user_id'],
+            problem_id=problem_id,
+            code=code,
+            language=language,
+            is_correct=is_accepted,
+            submit_time=datetime.utcnow()
+        )
+        db.session.add(submission)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'AC' if is_accepted else 'WA',
+            'score': result['score'],
+            'passed_count': result['passed_count'],
+            'total_count': result['total_count'],
+            'test_results': result['results'],
+            'message': '提交成功！' if is_accepted else '有部分测试用例未通过'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'运行出错: {str(e)}'
+        })
+
+
 if __name__ == '__main__':
     # 删除旧的数据库文件
     db_path = 'code/problems.db'
@@ -1042,198 +1211,23 @@ if __name__ == '__main__':
         )
         test_user.set_password('test')
         db.session.add(test_user)
-        
-        # 添加示例题目
-        problems = [
-            # 简单题目
-            Problem(
-                title='两数之和',
-                content='给定一个整数数组 nums 和一个目标值 target，请你在该数组中找出和为目标值的那两个整数，并返回他们的数组下标。\n示例：nums = [2, 7, 11, 15], target = 9\n返回 [0, 1]',
-                answer='[0,1]',
-                difficulty=1,
-                test_cases=json.dumps([
-                    {
-                        'input': [2, 7, 11, 15, 9],
-                        'output': [0, 1]
-                    },
-                    {
-                        'input': [3, 2, 4, 6],
-                        'output': [1, 2]
-                    },
-                    {
-                        'input': [3, 3, 6],
-                        'output': [0, 1]
-                    }
-                ])
-            ),
-            Problem(
-                title='回文数',
-                content='判断一个整数是否是回文数。回文数是指正序和倒序读都是一样的整数。\n示例：121 是回文数，-121 不是',
-                answer='true',
-                difficulty=1,
-                test_cases=json.dumps([
-                    {
-                        'input': 121,
-                        'output': True
-                    },
-                    {
-                        'input': -121,
-                        'output': False
-                    },
-                    {
-                        'input': 10,
-                        'output': False
-                    }
-                ])
-            ),
-            Problem(
-                title='罗马数字转整数',
-                content='给定一个罗马数字，将其转换成整数。\n示例：输入: "III" 输出: 3\n输入: "IV" 输出: 4\n输入: "IX" 输出: 9',
-                answer='3',
-                difficulty=1,
-                test_cases=json.dumps([
-                    {
-                        'input': 'III',
-                        'output': 3
-                    },
-                    {
-                        'input': 'IV',
-                        'output': 4
-                    },
-                    {
-                        'input': 'IX',
-                        'output': 9
-                    }
-                ])
-            ),
-            
-            # 中等题目
-            Problem(
-                title='最长回文子串',
-                content='给定一个字符串 s，找到 s 中最长的回文子串。\n示例：输入 "babad"，输出 "bab" 或 "aba"',
-                answer='bab',
-                difficulty=2,
-                test_cases=json.dumps([
-                    {
-                        'input': 'babad',
-                        'output': 'bab'
-                    },
-                    {
-                        'input': 'cbbd',
-                        'output': 'bb'
-                    },
-                    {
-                        'input': 'a',
-                        'output': 'a'
-                    }
-                ])
-            ),
-            Problem(
-                title='盛最多水的容器',
-                content='给你 n 个非负整数 a1，a2，...，an，每个数代表坐标中的一个点 (i, ai)。找出其中的两条线，使它们与 x 轴共同构成的容器可以容纳最多的水。\n示例：输入 [1,8,6,2,5,4,8,3,7] 输出：49',
-                answer='49',
-                difficulty=2,
-                test_cases=json.dumps([
-                    {
-                        'input': [1,8,6,2,5,4,8,3,7],
-                        'output': 49
-                    },
-                    {
-                        'input': [1,1],
-                        'output': 1
-                    },
-                    {
-                        'input': [4,3,2,1,4],
-                        'output': 16
-                    }
-                ])
-            ),
-            Problem(
-                title='三数之和',
-                content='给你一个包含 n 个整数的数组 nums，判断 nums 中是否存在三个元素 a，b，c ，使得 a + b + c = 0。请找出所有满足条件且不重复的三元组。',
-                answer='[[-1,-1,2],[-1,0,1]]',
-                difficulty=2,
-                test_cases=json.dumps([
-                    {
-                        'input': [-1,0,1,2,-1,-4],
-                        'output': [[-1,-1,2],[-1,0,1]]
-                    },
-                    {
-                        'input': [0,0,0],
-                        'output': [[0,0,0]]
-                    },
-                    {
-                        'input': [-2,0,1,1,2],
-                        'output': [[-2,0,2],[-2,1,1]]
-                    }
-                ])
-            ),
-            
-            # 困难题目
-            Problem(
-                title='正则表达式匹配',
-                content='给你一个字符串 s 和一个字符规律 p，请你来实现一个支持 \'.\' 和 \'*\' 的正则表达式匹配。\n\'.\' 匹配任意单个字符\n\'*\' 匹配零个或多个前面的那一个元素',
-                answer='true',
-                difficulty=3,
-                test_cases=json.dumps([
-                    {
-                        'input': ['aa', 'a*'],
-                        'output': True
-                    },
-                    {
-                        'input': ['ab', '.*'],
-                        'output': True
-                    },
-                    {
-                        'input': ['mississippi', 'mis*is*p*.'],
-                        'output': False
-                    }
-                ])
-            ),
-            Problem(
-                title='寻找两个正序数组的中位数',
-                content='给定两个大小分别为 m 和 n 的正序（从小到大）数组 nums1 和 nums2。请你找出并返回这两个正序数组的中位数。',
-                answer='2.0',
-                difficulty=3,
-                test_cases=json.dumps([
-                    {
-                        'input': [[1,3], [2]],
-                        'output': 2.0
-                    },
-                    {
-                        'input': [[1,2], [3,4]],
-                        'output': 2.5
-                    },
-                    {
-                        'input': [[0,0], [0,0]],
-                        'output': 0.0
-                    }
-                ])
-            ),
-            Problem(
-                title='最长有效括号',
-                content='给你一个只包含 \'(\' 和 \')\' 的字符串，找出最长有效（格式正确且连续）括号子串的长度。',
-                answer='4',
-                difficulty=3,
-                test_cases=json.dumps([
-                    {
-                        'input': ')()())',
-                        'output': 4
-                    },
-                    {
-                        'input': '(()',
-                        'output': 2
-                    },
-                    {
-                        'input': '',
-                        'output': 0
-                    }
-                ])
-            )
-        ]
-        
+    
+         # 从 problems.json 文件中读取题目数据
+        with open('problems.json', 'r', encoding='utf-8') as f:
+            problems_data = json.load(f)
+
         # 添加所有题目
-        for problem in problems:
+        # 添加题目
+        for problem_data in problems_data:
+            problem = Problem(
+                title=problem_data['title'],
+                content=problem_data['content'],
+                answer=problem_data['answer'],
+                difficulty=problem_data['difficulty'],
+                category=problem_data['category'],
+                tags=problem_data['tags'],
+                test_cases=json.dumps(problem_data['test_cases'])
+            )
             db.session.add(problem)
             
         # 提交所有更改

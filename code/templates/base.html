@@ -7,6 +7,8 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+    
+
     <div class="container">
         <nav>
             <div class="nav-left">
@@ -15,9 +17,11 @@
                 <a href="{{ url_for('language_basic') }}" class="nav-item">语言基础</a>
                 <a href="{{ url_for('algorithm_advanced') }}" class="nav-item">算法进阶</a>
                 <a href="{{ url_for('ai_tutor') }}" class="nav-item">AI辅导</a>
+                <a href="{{ url_for('search_problems') }}" class="nav-item">搜索题目</a>
             </div>
             <div class="nav-right">
                 {% if current_user %}
+                
                 <div class="user-menu">
                     <span class="username">{{ current_user.username }}</span>
                     <div class="user-dropdown">
@@ -27,6 +31,7 @@
                                 <span class="user-level">Level {{ user_level }}</span>
                             </div>
                         </div>
+
                         <div class="dropdown-divider"></div>
                         <div class="user-stats">
                             <div class="stat-row">
@@ -67,11 +72,13 @@
                     <a href="{{ url_for('login') }}" class="nav-item">登录</a>
                     <a href="{{ url_for('register') }}" class="nav-item">注册</a>
                 </div>
+
                 {% endif %}
             </div>
         </nav>
         {% block content %}{% endblock %}
     </div>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html> 

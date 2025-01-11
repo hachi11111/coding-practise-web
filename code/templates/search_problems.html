@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>搜题</h2>
+<form method="GET" action="{{ url_for('search_problems') }}">
+    <div>
+        <label for="keyword">关键词:</label>
+        <input type="text" id="keyword" name="keyword" placeholder="输入关键词" value="{{ keyword }}">
+    </div>
+    <div>
+        <label for="category">分类:</label>
+        <select id="category" name="category">
+            <option value="">所有分类</option>
+            <option value="算法">算法</option>
+            <option value="数据结构">数据结构</option>
+            <option value="机器学习">机器学习</option>
+        </select>
+    </div>
+    <div>
+        <label for="difficulty">难度:</label>
+        <select id="difficulty" name="difficulty">
+            <option value="">所有难度</option>
+            <option value="1">简单</option>
+            <option value="2">中等</option>
+            <option value="3">困难</option>
+        </select>
+    </div>
+    <div>
+        <label for="tag">标签:</label>
+        <input type="text" id="tag" name="tag" placeholder="输入标签">
+    </div>
+    <button type="submit">搜索</button>
+</form>
+
+<h3>搜索结果</h3>
+{% if problems %}
+    <ul class="search-results">
+        {% for problem in problems %}
+        <li>
+            <a href="{{ url_for('problem_detail', problem_id=problem.id) }}" class="problem-link">
+                <div class="problem-card">
+                    <strong>{{ problem.title }}</strong> ({{ problem.category }})
+                    <p>{{ problem.description }}</p>
+                    <small>难度: {{ problem.difficulty }} | 标签: {{ problem.tags }}</small>
+                </div>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>未找到相关题目。</p>
+{% endif %}
+
+<style>
+    .search-results {
+        list-style: none;
+        padding: 0;
+    }
+    .problem-link {
+        text-decoration: none;
+        color: inherit;
+    }
+    .problem-card {
+        padding: 15px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        transition: box-shadow 0.3s ease;
+    }
+    .problem-card:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}

@@ -386,6 +386,98 @@ MathJax = {
         transform: translateY(0);
     }
 }
+
+.code-check-result {
+    margin-top: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.result-header {
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.result-header.accepted {
+    background-color: #e3fcef;
+    border-color: #2ecc71;
+}
+
+.result-header.wrong {
+    background-color: #ffeaea;
+    border-color: #e74c3c;
+}
+
+.result-header.error {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.result-header.accepted .status-badge {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.result-header.wrong .status-badge {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.result-header.error .status-badge {
+    background-color: #ffc107;
+    color: black;
+}
+
+.test-cases {
+    padding: 10px;
+}
+
+.test-summary {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.test-case {
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.test-case.passed {
+    border-color: #2ecc71;
+}
+
+.test-case.failed {
+    border-color: #e74c3c;
+}
+
+.case-header {
+    padding: 8px;
+    background-color: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+}
+
+.case-details {
+    padding: 8px;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+.loading {
+    padding: 10px;
+    text-align: center;
+    color: #666;
+}
 </style>
 
 <script>
@@ -722,6 +814,94 @@ function handleQuickFeedback(messageId, isSatisfied) {
     .catch(error => {
         console.error('Error:', error);
         alert('提交反馈时发生错误');
+    });
+}
+
+function checkCode(code, messageId) {
+    const language = document.getElementById('language-select').value;
+    const problemId = document.getElementById('problem-select').value;
+    
+    if (!code.trim()) {
+        alert('请输入代码');
+        return;
+    }
+    
+    // 创建代码检查结果容器
+    const resultDiv = document.createElement('div');
+    resultDiv.className = 'code-check-result';
+    resultDiv.innerHTML = '<div class="loading">正在检查代码...</div>';
+    
+    // 找到对应的消息容器并添加结果显示
+    const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
+    messageDiv.appendChild(resultDiv);
+    
+    // 发送代码检查请求
+    fetch('/check_code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            code: code,
+            language: language,
+            problem_id: problemId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        let resultHtml = '';
+        
+        // 根据状态显示不同的结果样式
+        if (data.status === 'AC') {
+            resultHtml = `
+                <div class="result-header accepted">
+                    <span class="status-badge">AC</span>
+                    <span class="score">得分: ${data.score}分</span>
+                </div>
+            `;
+        } else if (data.status === 'WA') {
+            resultHtml = `
+                <div class="result-header wrong">
+                    <span class="status-badge">WA</span>
+                    <span class="score">得分: ${data.score}分</span>
+                </div>
+                <div class="test-cases">
+                    <div class="test-summary">
+                        通过测试用例: ${data.passed_count}/${data.total_count}
+                    </div>
+                    ${data.test_results.map((result, index) => `
+                        <div class="test-case ${result.passed ? 'passed' : 'failed'}">
+                            <div class="case-header">
+                                测试用例 #${index + 1}
+                                <span class="case-status">${result.passed ? '通过' : '失败'}</span>
+                            </div>
+                            <div class="case-details">
+                                <div>输入: ${JSON.stringify(result.input)}</div>
+                                <div>期望输出: ${result.expected}</div>
+                                <div>实际输出: ${result.actual}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            resultHtml = `
+                <div class="result-header error">
+                    <span class="status-badge">Error</span>
+                    <div class="error-message">${data.message}</div>
+                </div>
+            `;
+        }
+        
+        resultDiv.innerHTML = resultHtml;
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `
+            <div class="result-header error">
+                <span class="status-badge">Error</span>
+                <div class="error-message">提交失败: ${error.message}</div>
+            </div>
+        `;
     });
 }
 </script>

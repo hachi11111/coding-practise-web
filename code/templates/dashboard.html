@@ -3,49 +3,22 @@
 {% block title %}用户主页{% endblock %}
 
 {% block content %}
+
+<!-- 顶部导航栏 -->
+<header class="dashboard-header">
+    <div class="logo-container">
+        <img src="{{ url_for('get_logo') }}" alt="网站 Logo" class="logo">
+        <p class="site-description">
+            {{ current_user.username }}，欢迎来到我们的编程学习平台！<br>
+            这是一个专为编程学习者设计的在线平台，提供丰富的算法练习、代码评测和AI辅导功能。<br>
+            用户可以通过不同难度的题目提升编程能力，实时查看提交历史与统计数据，并获得AI导师的个性化指导，帮助快速掌握编程技巧。
+        </p>
+    </div>
+    
+</header>
 <div class="dashboard-content">
-    <div class="practice-modes">
-        <h2>练习模式</h2>
-        <div class="mode-cards">
-            <div class="mode-card difficulty-1">
-                <h3>简单题目</h3>
-                <p>适合初学者的基础练习</p>
-                <a href="{{ url_for('practice', difficulty=1) }}" class="mode-button">开始练习</a>
-            </div>
-            <div class="mode-card difficulty-2">
-                <h3>中等题目</h3>
-                <p>需要一定思考的进阶题目</p>
-                <a href="{{ url_for('practice', difficulty=2) }}" class="mode-button">开始练习</a>
-            </div>
-            <div class="mode-card difficulty-3">
-                <h3>困难题目</h3>
-                <p>富有挑战性的高级题目</p>
-                <a href="{{ url_for('practice', difficulty=3) }}" class="mode-button">开始练习</a>
-            </div>
-        </div>
-    </div>
-
-    <div class="quick-start">
-        <h2>快速开始</h2>
-        <a href="{{ url_for('exercise') }}" class="quick-start-button">随机练习</a>
-    </div>
-
-    <div class="problem-section">
-        <h2>题目列表</h2>
-        <div class="problem-grid">
-            {% for problem in problems %}
-            <a href="{{ url_for('problem_detail', problem_id=problem.id) }}" class="problem-card">
-                <span class="difficulty difficulty-{{ problem.difficulty }}">
-                    {{ '简单' if problem.difficulty == 1 else '中等' if problem.difficulty == 2 else '困难' }}
-                </span>
-                <h3>{{ problem.title }}</h3>
-                <p>{{ problem.content[:100] }}...</p>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-
-    <div class="submission-history">
+    
+    <div class="submission-history"></div>
         <h2>提交历史</h2>
         <div class="history-stats">
             <div class="stat-item">
@@ -70,6 +43,46 @@
         </div>
         <div class="calendar-heatmap"></div>
     </div>
+    
+
+    <div class="practice-modes">
+        <h2>练习模式</h2>
+        <div class="mode-cards">
+            <div class="mode-card difficulty-1">
+                <h3>简单题目</h3>
+                <p>适合初学者的基础练习</p>
+                <a href="{{ url_for('practice', difficulty=1) }}" class="mode-button">开始练习</a>
+            </div>
+            <div class="mode-card difficulty-2">
+                <h3>中等题目</h3>
+                <p>需要一定思考的进阶题目</p>
+                <a href="{{ url_for('practice', difficulty=2) }}" class="mode-button">开始练习</a>
+            </div>
+            <div class="mode-card difficulty-3">
+                <h3>困难题目</h3>
+                <p>富有挑战性的高级题目</p>
+                <a href="{{ url_for('practice', difficulty=3) }}" class="mode-button">开始练习</a>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="problem-section">
+        <h2>题目列表</h2>
+        <div class="problem-grid">
+            {% for problem in problems %}
+            <a href="{{ url_for('problem_detail', problem_id=problem.id) }}" class="problem-card">
+                <span class="difficulty difficulty-{{ problem.difficulty }}">
+                    {{ '简单' if problem.difficulty == 1 else '中等' if problem.difficulty == 2 else '困难' }}
+                </span>
+                <h3>{{ problem.title }}</h3>
+                <p>{{ problem.content[:100] }}...</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    
 </div>
 
 <style>
@@ -148,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
             heatmap.innerHTML = '';
             
             // 创建日历网格
-            for (let i = 364; i >= 0; i--) {
+            for (let i = 364; i >= -1; i--) {
                 const date = new Date(today);
                 date.setDate(date.getDate() - i);
                 const dateStr = date.toISOString().split('T')[0];
@@ -192,4 +205,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 </script>
+
 {% endblock %}
